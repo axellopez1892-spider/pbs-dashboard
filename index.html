@@ -220,28 +220,56 @@ function renderMoney(a){
   a.forEach(r=>{let m=moneyFor(r);let k=r.gestion||'(Vacío)';if(!mg[k])mg[k]={n:0,g:0,net:0};if(m.gross){mg[k].n++;mg[k].g+=m.gross;mg[k].net+=m.net}});
   document.getElementById('moneyGestionTable').innerHTML=Object.entries(mg).sort((a,b)=>b[1].g-a[1].g).map(([k,x])=>`<tr><td>${esc(k)}</td><td>${fmt(x.n)}</td><td>Q ${x.g.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${x.net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('');
 }
-async function loadRemote(){
+function loadRemote(){
   const url=document.getElementById('apiUrl').value.trim();
   const status=document.getElementById('remoteStatus');
   if(!url){status.innerHTML='<span class="bad">Ingresa la URL del Apps Script.</span>';return;}
   status.textContent='Consultando Google Sheets...';
-  try{
-    const res=await fetch(url,{cache:'no-store'});
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data=await res.json();
-    if(data.error) throw new Error(data.error);
-    if(!Array.isArray(data.headers)||!Array.isArray(data.rows)) throw new Error('La respuesta no tiene el formato esperado.');
-    const hs=data.headers.map(x=>String(x));
-    const newRows=data.rows.map(arr=>{let o={};hs.forEach((h,i)=>o[key(h)]=arr[i]??'');o._raw=arr;return o;}).filter(r=>Object.values(r).some(v=>String(v).trim()));
-    rows=newRows; headers=hs;
-    populate(); render();
-    const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
-    status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' registros · '+esc(stamp);
-    localStorage.setItem('pbs_api_url',url);
-  }catch(err){
-    console.error(err);
-    status.innerHTML='<span class="bad">No se pudieron cargar los datos: '+esc(err.message||err)+'</span><br><span class="note">Si el archivo se abre como archivo local (file://), algunos navegadores pueden bloquear la consulta. En ese caso lo probaremos al publicarlo en GitHub Pages.</span>';
-  }
+
+  // Apps Script puede responder con una redirección que el navegador bloquea
+  // mediante CORS cuando usamos fetch(). Para GitHub Pages usamos JSONP.
+  const callbackName='pbsDashboardCallback_'+Date.now();
+  const script=document.createElement('script');
+  const separator=url.includes('?')?'&':'?';
+  script.src=url+separator+'callback='+encodeURIComponent(callbackName)+'&t='+Date.now();
+  script.async=true;
+
+  let finished=false;
+  const cleanup=()=>{
+    try{delete window[callbackName]}catch(e){window[callbackName]=undefined}
+    if(script.parentNode)script.parentNode.removeChild(script);
+  };
+  const timer=setTimeout(()=>{
+    if(finished)return;
+    finished=true; cleanup();
+    status.innerHTML='<span class="bad">No se pudieron cargar los datos.</span><br><span class="note">La conexión con Google Apps Script tardó demasiado o la implementación necesita actualizarse.</span>';
+  },15000);
+
+  window[callbackName]=function(data){
+    if(finished)return;
+    finished=true; clearTimeout(timer); cleanup();
+    try{
+      if(data && data.error) throw new Error(data.error);
+      if(!data || !Array.isArray(data.headers)||!Array.isArray(data.rows)) throw new Error('La respuesta no tiene el formato esperado.');
+      const hs=data.headers.map(x=>String(x));
+      const newRows=data.rows.map(arr=>{
+        let o={}; hs.forEach((h,i)=>o[key(h)]=arr[i]??''); o._raw=arr; return o;
+      }).filter(r=>Object.values(r).some(v=>String(v).trim()));
+      rows=newRows; headers=hs;
+      saveStore(); populate(); render();
+      const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
+      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' registros · '+esc(stamp);
+      localStorage.setItem('pbs_api_url',url);
+    }catch(err){
+      status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
+    }
+  };
+  script.onerror=function(){
+    if(finished)return;
+    finished=true; clearTimeout(timer); cleanup();
+    status.innerHTML='<span class="bad">No se pudo conectar con Google Apps Script.</span><br><span class="note">Verifica que la implementación esté activa y que el acceso sea "Cualquiera".</span>';
+  };
+  document.head.appendChild(script);
 }
 function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
 
