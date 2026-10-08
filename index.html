@@ -71,7 +71,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div class="kpis" id="kpis"></div>
 
 <div class="grid2">
-<div class="panel"><h2>📊 Visitas diarias vs meta</h2><div id="dailyChart" class="chart"></div><div class="legend"><b>Visitas</b> = realizadas · <b>Meta</b> = técnicos activos ese día × meta diaria por ejecutivo · <b>Diferencial</b> = visitas − meta. Las metas se pueden modificar desde los filtros.</div></div>
+<div class="panel"><h2>📊 Visitas diarias vs meta</h2><div id="dailyChart" class="chart"></div><div class="legend"><b>Visitas</b> = realizadas · <b>Meta</b> = técnicos incluidos en los filtros × meta diaria por ejecutivo, de lunes a viernes · <b>Diferencial</b> = visitas − meta · sábado y domingo = días libres. Las metas se pueden modificar desde los filtros.</div></div>
 <div class="panel"><h2>🎯 Cumplimiento general</h2><div id="generalGoal"></div></div>
 </div>
 
@@ -176,21 +176,30 @@ function renderExec(a,meta){let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
 function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
 function renderDaily(a,dmeta,tech){
+  // Meta fija de lunes a viernes: cantidad de ejecutivos/técnicos incluidos
+  // en los filtros × meta diaria por ejecutivo.
+  // IMPORTANTE: NO se recalcula por la cantidad de técnicos que tuvieron visitas ese día.
+  // Sábado y domingo son días libres: meta 0 y diferencial no aplica.
+  let weekdayGoal=Math.max(0,tech*dmeta);
   let g=groupRows(a,'fecha').map(x=>{
     let d=dateVal(x.k);
-    let activeTech=uniqFrom(x.rows,'ejecutivo').length;
-    let dailyGoal=activeTech*dmeta;
-    let diff=x.n-dailyGoal;
-    return {...x,d,activeTech,dailyGoal,diff};
+    let day=d?d.getDay():null; // 0 domingo, 6 sábado
+    let weekend=day===0||day===6;
+    let dailyGoal=weekend?0:weekdayGoal;
+    let diff=weekend?null:x.n-dailyGoal;
+    return {...x,d,weekend,dailyGoal,diff};
   }).filter(x=>x.d).sort((x,y)=>x.d-y.d);
+
   let max=Math.max(...g.map(x=>Math.max(x.n,x.dailyGoal)),1);
   document.getElementById('dailyChart').innerHTML=g.map(x=>{
-    let diffClass=x.diff>=0?'good':'bad';
-    let diffText=(x.diff>=0?'+':'')+fmt(x.diff);
+    let diffClass=x.weekend?'warn':(x.diff>=0?'good':'bad');
+    let diffText=x.weekend?'—':((x.diff>=0?'+':'')+fmt(x.diff));
+    let metaText=x.weekend?'Libre':'Meta: '+fmt(x.dailyGoal);
     let pctHeight=Math.max(2,x.n/max*100);
-    return `<div class="barcol" title="${esc(x.k)} · ${x.n} visitas · Meta ${x.dailyGoal} · Diferencial ${diffText}">
+    let dayName=x.weekend?'Día libre':'Día laboral';
+    return `<div class="barcol" title="${esc(x.k)} · ${x.n} visitas · ${dayName} · ${x.weekend?'sin meta':('Meta '+x.dailyGoal+' · Diferencial '+diffText)}">
       <div class="barfill" style="height:${pctHeight}%"><div class="barvalue">${fmt(x.n)}</div></div>
-      <div class="barmeta">Meta: ${fmt(x.dailyGoal)}</div>
+      <div class="barmeta">${metaText}</div>
       <div class="bardiff ${diffClass}">${diffText}</div>
       <div class="barlabel">${esc(x.k.slice(0,5))}</div>
     </div>`;
