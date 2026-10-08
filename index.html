@@ -31,6 +31,29 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 .note{font-size:11px;color:var(--muted);line-height:1.5}
 .data-status-box{border:1px solid #b7e4c7;background:#effaf3;border-radius:10px;padding:9px 12px;min-height:64px;display:flex;flex-direction:column;justify-content:center}.data-status-title{font-size:10px;font-weight:800;color:#067647}.data-status-date{font-size:16px;font-weight:800;color:#172033;margin-top:2px}.data-status-sync{font-size:10px;color:#667085;margin-top:2px}@media(max-width:900px){.data-status-box{grid-column:1/-1}.actions{justify-content:flex-start}}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.filters{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.kpis,.grid2,.grid3,.filters{grid-template-columns:1fr}.wrap{padding:10px}}
+
+/* Calendario de productividad */
+.productivity-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:12px}
+.calendar-head{font-size:11px;font-weight:800;text-align:center;color:#64748b;padding:6px 2px;text-transform:uppercase}
+.calendar-day{min-height:86px;border:1px solid #e2e8f0;border-radius:12px;padding:9px;background:#fff;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box}
+.calendar-day.empty{background:transparent;border-color:transparent}
+.calendar-day.good{background:#ecfdf3;border-color:#86efac}
+.calendar-day.warn{background:#fffbeb;border-color:#fcd34d}
+.calendar-day.bad{background:#fef2f2;border-color:#fca5a5}
+.calendar-day.weekend{background:#f8fafc;border-color:#e2e8f0;color:#64748b}
+.calendar-day.outside{opacity:.45}
+.calendar-num{font-size:13px;font-weight:800;color:#334155}
+.calendar-visits{font-size:22px;font-weight:900;line-height:1.1;color:#0f172a}
+.calendar-meta{font-size:10px;color:#64748b}
+.calendar-diff{font-size:11px;font-weight:800}
+.calendar-diff.good{color:#15803d}
+.calendar-diff.bad{color:#dc2626}
+.calendar-diff.warn{color:#a16207}
+.calendar-legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:12px;color:#64748b}
+.calendar-legend span{display:inline-flex;align-items:center;gap:5px}
+.calendar-dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.calendar-dot.good{background:#22c55e}.calendar-dot.warn{background:#f59e0b}.calendar-dot.bad{background:#ef4444}.calendar-dot.free{background:#cbd5e1}
+@media(max-width:760px){.productivity-calendar{gap:4px}.calendar-day{min-height:72px;padding:6px}.calendar-visits{font-size:17px}.calendar-meta,.calendar-diff{font-size:9px}.calendar-head{font-size:9px}}
 </style>
 </head>
 <body>
@@ -112,7 +135,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 
 <div class="grid2">
 <div class="panel"><h2>🏆 Productividad por ejecutivo</h2><div class="tablewrap"><table><thead><tr><th>#</th><th>Ejecutivo</th><th>Visitas</th><th>Meta</th><th>%</th><th>Diferencia</th><th>Producción</th><th>Producción</th></tr></thead><tbody id="execTable"></tbody></table></div></div>
-<div class="panel"><h2>🔧 Visitas por gestión</h2><div class="tablewrap"><table><thead><tr><th>Gestión</th><th>Visitas</th><th>%</th></tr></thead><tbody id="gestionTable"></tbody></table></div></div>
+<div class="panel"><h2>🗓️ Calendario de productividad</h2><div id="productivityCalendar"></div></div>
 </div>
 
 <div class="grid2">
@@ -170,7 +193,7 @@ document.getElementById('kpis').innerHTML=[
 ].map(x=>`<div class="card"><div class="kpi-label">${x[0]}</div><div class="kpi-value">${x[1]}</div><div class="kpi-sub">${x[2]}</div></div>`).join('');
 renderMoney(a);
 goalBox('generalGoal',tech,meta,vis); ['capitalRuta','capitalProyecto','departamental'].forEach(id=>goalBox(id,0,meta,0));
-renderStaff(a,meta);renderExec(a,meta);renderGroupTable('gestionTable',group(a,'gestion'),vis);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderDaily(a,dmeta,tech)}
+renderStaff(a,meta);renderExec(a,meta);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderProductivityCalendar(a,dmeta,tech);renderDaily(a,dmeta,tech)}
 function uniqFrom(a,k){return [...new Set(a.map(r=>r[k]).filter(x=>String(x).trim()))]}
 function subsetByArea(a,area,sub){return a.filter(r=>norm(r.area)===norm(area)&&(!sub||norm(r.sub)===norm(sub)))}
 function goalBox(id,forcedTech,meta,vis){let el=document.getElementById(id);if(!el)return;if(id==='capitalRuta'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Ruta')}
@@ -182,6 +205,48 @@ function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.ar
 function renderExec(a,meta){let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);document.getElementById('execTable').innerHTML=g.map((x,i)=>{let p=x.n/meta*100;let prod=x.rows.reduce((s,r)=>s+moneyFor(r).gross,0);return`<tr><td>${i+1}</td><td>${esc(x.k)}</td><td>${fmt(x.n)}</td><td>${fmt(meta)}</td><td>${badge(p)}</td><td class="${x.n-meta>=0?'good':'bad'}">${x.n-meta>=0?'+':''}${fmt(x.n-meta)}</td><td>Q ${prod.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`}).join('')}
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
 function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
+function renderProductivityCalendar(a,dmeta,tech){
+  const host=document.getElementById('productivityCalendar');
+  if(!host)return;
+  const validDates=a.map(r=>dateVal(r.fecha)).filter(Boolean).sort((x,y)=>x-y);
+  let base=validDates[0];
+  const from=document.getElementById('fFrom')?.value;
+  if(from){const fd=dateVal(from);if(fd)base=fd;}
+  if(!base){host.innerHTML='<div class="note">Sin fechas válidas para mostrar el calendario.</div>';return;}
+  const year=base.getFullYear(), month=base.getMonth();
+  const first=new Date(year,month,1), last=new Date(year,month+1,0);
+  const startDay=first.getDay();
+  const counts={};
+  a.forEach(r=>{const d=dateVal(r.fecha);if(!d)return;if(d.getFullYear()===year&&d.getMonth()===month){const k=d.getDate();counts[k]=(counts[k]||0)+1;}});
+  const goal=Math.max(0,tech*dmeta);
+  const warnThreshold=Math.max(1,Math.ceil(goal*450/540));
+  let html='<div class="productivity-calendar">';
+  ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].forEach(d=>html+=`<div class="calendar-head">${d}</div>`);
+  for(let i=0;i<startDay;i++)html+='<div class="calendar-day empty"></div>';
+  for(let day=1;day<=last.getDate();day++){
+    const d=new Date(year,month,day), dow=d.getDay(), weekend=dow===0||dow===6, n=counts[day]||0;
+    let cls='calendar-day', diffText='', metaText='';
+    if(weekend){cls+=' weekend';metaText='Meta libre';diffText='—';}
+    else if(n>=goal){cls+=' good';metaText='Meta: '+fmt(goal);diffText='+'+fmt(n-goal);}
+    else if(n>=warnThreshold){cls+=' warn';metaText='Meta: '+fmt(goal);diffText=fmt(n-goal);}
+    else{cls+=' bad';metaText='Meta: '+fmt(goal);diffText=fmt(n-goal);}
+    html+=`<div class="${cls}" title="${day}/${month+1}/${year} · ${n} visitas · ${weekend?'fin de semana / meta libre':('meta '+goal+' · diferencial '+(n-goal))}">
+      <div class="calendar-num">${day}</div>
+      <div class="calendar-visits">${fmt(n)}</div>
+      <div class="calendar-meta">${metaText}</div>
+      <div class="calendar-diff ${weekend?'warn':(n>=goal?'good':'bad')}">${weekend?'':(n>=goal?'+':'')+fmt(n-goal)}</div>
+    </div>`;
+  }
+  html+='</div>';
+  html+=`<div class="calendar-legend">
+    <span><i class="calendar-dot good"></i> 🟢 Meta o más (≥ ${fmt(goal)})</span>
+    <span><i class="calendar-dot warn"></i> 🟡 Nivel intermedio (≥ ${fmt(warnThreshold)})</span>
+    <span><i class="calendar-dot bad"></i> 🔴 Bajo meta (&lt; ${fmt(warnThreshold)})</span>
+    <span><i class="calendar-dot free"></i> ⚪ Fin de semana / meta libre</span>
+  </div>`;
+  host.innerHTML=`<div class="note" style="margin-bottom:4px">${first.toLocaleDateString('es-GT',{month:'long',year:'numeric'})}</div>`+html;
+}
+
 function renderDaily(a,dmeta,tech){
   // Meta fija de lunes a viernes: cantidad de ejecutivos/técnicos incluidos
   // en los filtros × meta diaria por ejecutivo.
