@@ -244,14 +244,14 @@ function loadRemote(){
   const url=document.getElementById('apiUrl').value.trim();
   const status=document.getElementById('remoteStatus');
   if(!url){status.innerHTML='<span class="bad">Ingresa la URL del Apps Script.</span>';return;}
-  status.textContent='Consultando Google Sheets...';
 
-  // Apps Script puede responder con una redirección que el navegador bloquea
-  // mediante CORS cuando usamos fetch(). Para GitHub Pages usamos JSONP.
+  status.innerHTML='<span class="note">Consultando Google Sheets...</span>';
   const callbackName='pbsDashboardCallback_'+Date.now();
   const script=document.createElement('script');
   const separator=url.includes('?')?'&':'?';
-  script.src=url+separator+'callback='+encodeURIComponent(callbackName)+'&t='+Date.now();
+  // JSONP: Apps Script devuelve prefix({...}); y el navegador lo ejecuta
+  // como un script aunque el origen sea diferente a GitHub Pages.
+  script.src=url+separator+'prefix='+encodeURIComponent(callbackName)+'&callback='+encodeURIComponent(callbackName)+'&t='+Date.now();
   script.async=true;
 
   let finished=false;
@@ -259,22 +259,53 @@ function loadRemote(){
     try{delete window[callbackName]}catch(e){window[callbackName]=undefined}
     if(script.parentNode)script.parentNode.removeChild(script);
   };
-  const timer=setTimeout(()=>{
+  const fail=(msg)=>{
     if(finished)return;
-    finished=true; cleanup();
-    status.innerHTML='<span class="bad">No se pudieron cargar los datos.</span><br><span class="note">La conexión con Google Apps Script tardó demasiado o la implementación necesita actualizarse.</span>';
-  },15000);
+    finished=true;
+    clearTimeout(timer);
+    cleanup();
+    status.innerHTML='<span class="bad">'+msg+'</span><br><span class="note">Si Google Apps Script responde correctamente, revisaremos únicamente la publicación del dashboard.</span>';
+  };
+  const timer=setTimeout(()=>fail('No se pudieron cargar los datos desde Google Sheets.'),20000);
 
   window[callbackName]=function(data){
     if(finished)return;
-    finished=true; clearTimeout(timer); cleanup();
+    finished=true;
+    clearTimeout(timer);
+    cleanup();
     try{
       if(data && data.error) throw new Error(data.error);
       if(!data || !Array.isArray(data.headers)||!Array.isArray(data.rows)) throw new Error('La respuesta no tiene el formato esperado.');
       const hs=data.headers.map(x=>String(x));
       const newRows=data.rows.map(arr=>{
-        let o={}; hs.forEach((h,i)=>o[key(h)]=arr[i]??''); o._raw=arr; return o;
+        let o={};
+        hs.forEach((h,i)=>o[key(h)]=arr[i]??'');
+        o._raw=arr;
+        return o;
       }).filter(r=>Object.values(r).some(v=>String(v).trim()));
-      rows=newRows; headers=hs;
-      saveStore(); populate(); render();
-      const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):n
+
+      // Solo reemplazamos los datos cuando la respuesta es válida.
+      rows=newRows;
+      headers=hs;
+      saveStore();
+      populate();
+      render();
+      const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
+      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' registros · '+esc(stamp);
+      localStorage.setItem('pbs_api_url',url);
+    }catch(err){
+      status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
+    }
+  };
+
+  script.onerror=function(){fail('No se pudo conectar con Google Apps Script.');};
+  document.head.appendChild(script);
+}
+
+function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
+
+function resetFilters(){['fFrom','fTo'].forEach(x=>document.getElementById(x).value='');['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].forEach(x=>document.getElementById(x).value='');render()}
+restoreApiUrl(); if(!loadStore()){ rows=[]; headers=[]; populate(); render(); } setTimeout(()=>loadRemote(),300);
+</script>
+</body>
+</html>
