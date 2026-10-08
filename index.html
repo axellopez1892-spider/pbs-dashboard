@@ -25,7 +25,13 @@ select,input,textarea,button{font:inherit}select,input{width:100%;border:1px sol
 .chart{height:330px;display:flex;align-items:flex-end;gap:7px;border-bottom:1px solid var(--line);padding:32px 5px 0;overflow-x:auto;overflow-y:hidden}
 .barcol{flex:1 0 48px;min-width:48px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}.barfill{background:#4f7df3;border-radius:5px 5px 0 0;min-height:2px;position:relative}.barvalue{position:absolute;left:50%;transform:translateX(-50%);bottom:100%;font-size:11px;font-weight:800;color:#0f172a;white-space:nowrap;margin-bottom:4px}.barmeta{font-size:9px;color:var(--muted);text-align:center;white-space:nowrap;margin-top:5px}.bardiff{font-size:10px;font-weight:800;text-align:center;white-space:nowrap;margin-top:2px}.barlabel{font-size:9px;color:var(--muted);text-align:center;margin-top:5px;white-space:nowrap;overflow:hidden}
 .legend{font-size:11px;color:var(--muted);margin-top:8px}
-table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-size:10px;text-transform:uppercase}tbody tr:hover{background:#f8fafc}.tablewrap{overflow:auto;max-height:450px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-size:10px;text-transform:uppercase}tbody tr:hover{background:#f8fafc}.tablewrap{overflow:auto;max-height:450px}.exec-detail-wrap{max-height:450px;overflow:auto}
+.exec-detail-table{min-width:760px}
+.exec-detail-table th,.exec-detail-table td{text-align:center;white-space:nowrap}
+.exec-detail-table th:nth-child(2),.exec-detail-table td:nth-child(2){text-align:left;min-width:245px;position:sticky;left:0;background:var(--card);z-index:2}
+.exec-detail-table thead th{position:sticky;top:0;background:#fff;z-index:3}
+.exec-detail-table thead th:nth-child(2){z-index:4}
+.exec-detail-table tbody td:last-child{font-weight:800}
 .badge{display:inline-block;border-radius:99px;padding:4px 8px;font-size:10px;font-weight:800}.bgood{background:#ecfdf3;color:#067647}.bwarn{background:#fffaeb;color:#b54708}.bbad{background:#fef3f2;color:#b42318}
 .drop{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:12px}.drop textarea{margin-top:8px;height:90px}
 .note{font-size:11px;color:var(--muted);line-height:1.5}
@@ -113,7 +119,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 
 <div class="grid2">
 <div class="panel"><h2>🏆 Productividad por ejecutivo</h2><div class="tablewrap"><table><thead><tr><th>#</th><th>Ejecutivo</th><th>Visitas</th><th>Meta</th><th>%</th><th>Diferencia</th><th>Producción</th><th>Producción</th></tr></thead><tbody id="execTable"></tbody></table></div></div>
-<div class="panel"><h2>🔧 Visitas por gestión</h2><div class="tablewrap"><table><thead><tr><th>Gestión</th><th>Visitas</th><th>%</th></tr></thead><tbody id="gestionTable"></tbody></table></div></div>
+<div class="panel"><h2>🔧 Detalle de gestiones por ejecutivo</h2><div class="tablewrap exec-detail-wrap"><table class="exec-detail-table"><thead><tr><th>#</th><th>Ejecutivo</th><th>🔧 Averías</th><th>🛠️ Mant.</th><th>📦 Inst.</th><th>🔄 Mig.</th><th>♻️ Recup.</th><th>⚙️ Reprog.</th><th>Total</th></tr></thead><tbody id="execDetailTable"></tbody></table></div><div class="note" style="margin-top:8px">Detalle de visitas realizadas por cada ejecutivo según el tipo de gestión.</div></div>
 </div>
 
 <div class="grid2">
@@ -254,7 +260,7 @@ document.getElementById('kpis').innerHTML=[
 ].map(x=>`<div class="card"><div class="kpi-label">${x[0]}</div><div class="kpi-value">${x[1]}</div><div class="kpi-sub">${x[2]}</div></div>`).join('');
 renderMoney(a);
 goalBox('generalGoal',tech,meta,vis); ['capitalRuta','capitalProyecto','departamental'].forEach(id=>goalBox(id,0,meta,0));
-renderStaff(a,meta);renderExec(a,meta);renderGroupTable('gestionTable',group(a,'gestion'),vis);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderDaily(a,dmeta,tech)}
+renderStaff(a,meta);renderExec(a,meta);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderDaily(a,dmeta,tech)}
 function uniqFrom(a,k){return [...new Set(a.map(r=>r[k]).filter(x=>String(x).trim()))]}
 function subsetByArea(a,area,sub){return a.filter(r=>norm(r.area)===norm(area)&&(!sub||norm(r.sub)===norm(sub)))}
 function goalBox(id,forcedTech,meta,vis){let el=document.getElementById(id);if(!el)return;if(id==='capitalRuta'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Ruta')}
@@ -263,7 +269,27 @@ else if(id==='departamental'){let a=filtered().filter(r=>!norm(r.area).includes(
 else drawGoal(el,forcedTech,meta,vis,'General')}
 function drawGoal(el,t,meta,vis,title){let goal=t*meta,p=goal?vis/goal*100:0,diff=vis-goal;el.innerHTML=`<div class="metric"><div class="metricbox"><span class="kpi-label">Técnicos</span><b>${fmt(t)}</b></div><div class="metricbox"><span class="kpi-label">Meta</span><b>${fmt(goal)}</b></div><div class="metricbox"><span class="kpi-label">Realizado</span><b>${fmt(vis)}</b></div><div class="metricbox"><span class="kpi-label">Resultado</span><b class="${p>=100?'good':p>=90?'warn':'bad'}">${pct(p)}</b></div></div><div class="progress"><div class="bar" style="width:${Math.min(100,Math.max(0,p))}%"></div></div><div class="note">${esc(title)} · ${diff>=0?'<span class="good">+':''}${fmt(diff)}${diff<0?'</span>':''} visitas respecto a meta.</div>`}
 function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),'Departamental':a.filter(r=>!norm(r.area).includes('capital'))};let h='<table><thead><tr><th>Operación</th><th>Técnicos</th><th>Visitas</th><th>Meta mensual</th><th>Cumplimiento</th></tr></thead><tbody>';Object.entries(groups).forEach(([n,x])=>{let t=uniqFrom(x,'ejecutivo').length,g=t*meta,p=g?x.length/g*100:0;h+=`<tr><td>${n}</td><td>${t}</td><td>${fmt(x.length)}</td><td>${fmt(g)}</td><td>${badge(p)}</td></tr>`});h+='</tbody></table>';document.getElementById('staff').innerHTML=h}
-function renderExec(a,meta){let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);document.getElementById('execTable').innerHTML=g.map((x,i)=>{let p=x.n/meta*100;let prod=x.rows.reduce((s,r)=>s+moneyFor(r).gross,0);return`<tr><td>${i+1}</td><td>${esc(x.k)}</td><td>${fmt(x.n)}</td><td>${fmt(meta)}</td><td>${badge(p)}</td><td class="${x.n-meta>=0?'good':'bad'}">${x.n-meta>=0?'+':''}${fmt(x.n-meta)}</td><td>Q ${prod.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`}).join('')}
+function renderExec(a,meta){
+  let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);
+  document.getElementById('execTable').innerHTML=g.map((x,i)=>{
+    let p=x.n/meta*100;
+    let prod=x.rows.reduce((s,r)=>s+moneyFor(r).gross,0);
+    return `<tr><td>${i+1}</td><td>${esc(x.k)}</td><td>${fmt(x.n)}</td><td>${fmt(meta)}</td><td>${badge(p)}</td><td class="${x.n-meta>=0?'good':'bad'}">${x.n-meta>=0?'+':''}${fmt(x.n-meta)}</td><td>Q ${prod.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td></td></tr>`
+  }).join('');
+
+  const tipos=[
+    ['averia',['avería','averia','averias','averías']],
+    ['mantenimiento',['mantenimiento','mantenimientos']],
+    ['instalacion',['instalación','instalacion','instalaciones']],
+    ['migracion',['migración','migracion','migraciones']],
+    ['recuperacion',['recuperación','recuperacion','recuperaciones']],
+    ['reprogramacion',['reprogramación','reprogramacion','reprogramaciones']]
+  ];
+  document.getElementById('execDetailTable').innerHTML=g.map((x,i)=>{
+    const counts=tipos.map(([,vals])=>x.rows.filter(r=>vals.includes(norm(r.motivo))).length);
+    return `<tr><td>${i+1}</td><td><b>${esc(x.k)}</b></td>${counts.map(n=>`<td>${fmt(n)}</td>`).join('')}<td><b>${fmt(x.n)}</b></td></tr>`;
+  }).join('');
+}
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
 function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
 function renderDaily(a,dmeta,tech){
