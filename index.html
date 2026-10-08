@@ -22,8 +22,8 @@ select,input,textarea,button{font:inherit}select,input{width:100%;border:1px sol
 .metric{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metricbox{border:1px solid var(--line);border-radius:10px;padding:12px}.metricbox b{display:block;font-size:20px;margin-top:3px}
 .progress{height:11px;background:#edf1f5;border-radius:99px;overflow:hidden;margin:10px 0}.bar{height:100%;background:var(--accent);border-radius:99px}
 .good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-.chart{height:250px;display:flex;align-items:flex-end;gap:5px;border-bottom:1px solid var(--line);padding:15px 5px 0;overflow:hidden}
-.barcol{flex:1;min-width:10px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}.barfill{background:#4f7df3;border-radius:5px 5px 0 0;min-height:2px}.barlabel{font-size:9px;color:var(--muted);text-align:center;margin-top:4px;white-space:nowrap;overflow:hidden}
+.chart{height:330px;display:flex;align-items:flex-end;gap:7px;border-bottom:1px solid var(--line);padding:32px 5px 0;overflow-x:auto;overflow-y:hidden}
+.barcol{flex:1 0 48px;min-width:48px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}.barfill{background:#4f7df3;border-radius:5px 5px 0 0;min-height:2px;position:relative}.barvalue{position:absolute;left:50%;transform:translateX(-50%);bottom:100%;font-size:11px;font-weight:800;color:#0f172a;white-space:nowrap;margin-bottom:4px}.barmeta{font-size:9px;color:var(--muted);text-align:center;white-space:nowrap;margin-top:5px}.bardiff{font-size:10px;font-weight:800;text-align:center;white-space:nowrap;margin-top:2px}.barlabel{font-size:9px;color:var(--muted);text-align:center;margin-top:5px;white-space:nowrap;overflow:hidden}
 .legend{font-size:11px;color:var(--muted);margin-top:8px}
 table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-size:10px;text-transform:uppercase}tbody tr:hover{background:#f8fafc}.tablewrap{overflow:auto;max-height:450px}
 .badge{display:inline-block;border-radius:99px;padding:4px 8px;font-size:10px;font-weight:800}.bgood{background:#ecfdf3;color:#067647}.bwarn{background:#fffaeb;color:#b54708}.bbad{background:#fef3f2;color:#b42318}
@@ -34,7 +34,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 </head>
 <body>
 <div class="header"><div class="wrap" style="padding:0">
-<h1>Dashboard de Productividad PBS</h1><p>Control mensual de visitas, metas, productividad y distribución operativa · Histórico acumulativo</p>
+<h1>Dashboard de Productividad PBS · Proyecto POS BAC</h1><p>Control mensual de visitas, metas, productividad y distribución operativa · Histórico acumulativo</p>
 </div></div>
 
 <div class="wrap"><div class="panel" style="margin-bottom:16px"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div></div>
@@ -62,8 +62,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div><label>Departamento</label><select id="fDept" onchange="render()"></select></div>
 <div><label>Municipio</label><select id="fMun" onchange="render()"></select></div>
 <div><label>Zona</label><select id="fZona" onchange="render()"></select></div>
-<div><label>Meta mensual por ejecutivo</label><input id="metaMensual" type="number" value="375" min="1" onchange="render()"></div>
-<div><label>Meta diaria por ejecutivo</label><input id="metaDiaria" type="number" value="20" min="1" onchange="render()"></div>
+<div><label>Meta mensual por ejecutivo <span class="note">(editable)</span></label><input id="metaMensual" type="number" value="375" min="1" onchange="render()"></div>
+<div><label>Meta diaria por ejecutivo <span class="note">(editable)</span></label><input id="metaDiaria" type="number" value="20" min="1" onchange="render()"></div>
 </div>
 <div style="margin-top:10px"><button class="btn secondary" onclick="resetFilters()">Restablecer filtros</button></div>
 </div>
@@ -71,7 +71,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div class="kpis" id="kpis"></div>
 
 <div class="grid2">
-<div class="panel"><h2>📊 Visitas diarias vs meta</h2><div id="dailyChart" class="chart"></div><div class="legend">La meta diaria se calcula como técnicos activos × meta diaria.</div></div>
+<div class="panel"><h2>📊 Visitas diarias vs meta</h2><div id="dailyChart" class="chart"></div><div class="legend"><b>Visitas</b> = realizadas · <b>Meta</b> = técnicos activos ese día × meta diaria por ejecutivo · <b>Diferencial</b> = visitas − meta. Las metas se pueden modificar desde los filtros.</div></div>
 <div class="panel"><h2>🎯 Cumplimiento general</h2><div id="generalGoal"></div></div>
 </div>
 
@@ -175,7 +175,27 @@ function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.ar
 function renderExec(a,meta){let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);document.getElementById('execTable').innerHTML=g.map((x,i)=>{let p=x.n/meta*100;let prod=x.rows.reduce((s,r)=>s+moneyFor(r).gross,0);return`<tr><td>${i+1}</td><td>${esc(x.k)}</td><td>${fmt(x.n)}</td><td>${fmt(meta)}</td><td>${badge(p)}</td><td class="${x.n-meta>=0?'good':'bad'}">${x.n-meta>=0?'+':''}${fmt(x.n-meta)}</td><td>Q ${prod.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`}).join('')}
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
 function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
-function renderDaily(a,dmeta,tech){let g=groupRows(a,'fecha').map(x=>{let d=dateVal(x.k);return{...x,d}}).filter(x=>x.d).sort((x,y)=>x.d-y.d);let max=Math.max(dmeta*tech,...g.map(x=>x.n),1);document.getElementById('dailyChart').innerHTML=g.map(x=>`<div class="barcol" title="${esc(x.k)}: ${x.n} visitas"><div class="barfill" style="height:${Math.max(2,x.n/max*100)}%"></div><div class="barlabel">${esc(x.k.slice(0,5))}</div></div>`).join('')||'<div class="note">Sin datos de fecha válidos.</div>'}
+function renderDaily(a,dmeta,tech){
+  let g=groupRows(a,'fecha').map(x=>{
+    let d=dateVal(x.k);
+    let activeTech=uniqFrom(x.rows,'ejecutivo').length;
+    let dailyGoal=activeTech*dmeta;
+    let diff=x.n-dailyGoal;
+    return {...x,d,activeTech,dailyGoal,diff};
+  }).filter(x=>x.d).sort((x,y)=>x.d-y.d);
+  let max=Math.max(...g.map(x=>Math.max(x.n,x.dailyGoal)),1);
+  document.getElementById('dailyChart').innerHTML=g.map(x=>{
+    let diffClass=x.diff>=0?'good':'bad';
+    let diffText=(x.diff>=0?'+':'')+fmt(x.diff);
+    let pctHeight=Math.max(2,x.n/max*100);
+    return `<div class="barcol" title="${esc(x.k)} · ${x.n} visitas · Meta ${x.dailyGoal} · Diferencial ${diffText}">
+      <div class="barfill" style="height:${pctHeight}%"><div class="barvalue">${fmt(x.n)}</div></div>
+      <div class="barmeta">Meta: ${fmt(x.dailyGoal)}</div>
+      <div class="bardiff ${diffClass}">${diffText}</div>
+      <div class="barlabel">${esc(x.k.slice(0,5))}</div>
+    </div>`;
+  }).join('')||'<div class="note">Sin datos de fecha válidos.</div>'
+}
 function renderDetail(a){let keys=['fecha','gestion','ejecutivo','nombre comercio','departamento','municipio','zona','ruta','razon','area','sub','pago'];let labels=['Fecha','Gestión','Ejecutivo','Comercio','Departamento','Municipio','Zona','Ruta','Razón','AREA PBS','Sub Area','Aplica Pago'];document.getElementById('detailHead').innerHTML='<tr>'+labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';document.getElementById('detailBody').innerHTML=a.slice(0,1000).map(r=>'<tr>'+keys.map(k=>`<td>${esc(r[k])}</td>`).join('')+'</tr>').join('')}
 
 const TARIFF={
@@ -257,24 +277,4 @@ function loadRemote(){
       }).filter(r=>Object.values(r).some(v=>String(v).trim()));
       rows=newRows; headers=hs;
       saveStore(); populate(); render();
-      const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
-      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' registros · '+esc(stamp);
-      localStorage.setItem('pbs_api_url',url);
-    }catch(err){
-      status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
-    }
-  };
-  script.onerror=function(){
-    if(finished)return;
-    finished=true; clearTimeout(timer); cleanup();
-    status.innerHTML='<span class="bad">No se pudo conectar con Google Apps Script.</span><br><span class="note">Verifica que la implementación esté activa y que el acceso sea "Cualquiera".</span>';
-  };
-  document.head.appendChild(script);
-}
-function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
-
-function resetFilters(){['fFrom','fTo'].forEach(x=>document.getElementById(x).value='');['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].forEach(x=>document.getElementById(x).value='');render()}
-restoreApiUrl(); rows=[]; headers=[]; populate(); render(); setTimeout(()=>loadRemote(),300);
-</script>
-</body>
-</html>
+      const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):n
