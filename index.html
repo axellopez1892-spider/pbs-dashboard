@@ -91,7 +91,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div class="tablewrap"><table><thead><tr><th>Operación</th><th>Visitas con pago</th><th>Con IVA</th><th>Sin IVA</th><th>USD</th></tr></thead><tbody id="moneyAreaTable"></tbody></table></div>
 </div>
 <div class="panel"><h2>🔧 Producción por gestión</h2>
-<div class="tablewrap"><table><thead><tr><th>Gestión</th><th>Visitas</th><th>Con IVA</th><th>Sin IVA</th></tr></thead><tbody id="moneyGestionTable"></tbody></table></div>
+<div class="tablewrap"><table><thead><tr><th>Tipo de gestión</th><th>Visitas</th><th>Con IVA</th><th>Sin IVA</th></tr></thead><tbody id="moneyGestionTable"></tbody></table></div>
 </div>
 </div>
 
@@ -186,7 +186,7 @@ function tariffFor(r){
   if(norm(r.pago)!=='si') return 0;
   const area=norm(r.area);
   const zone=area.includes('departamental')?'departamental':'capital';
-  return TARIFF[zone][norm(r.gestion)]||0;
+  return TARIFF[zone][norm(r.motivo)]||0;
 }
 function moneyFor(r){
   const gross=tariffFor(r);
@@ -217,7 +217,7 @@ function renderMoney(a){
   }).join('');
 
   const mg={};
-  a.forEach(r=>{let m=moneyFor(r);let k=r.gestion||'(Vacío)';if(!mg[k])mg[k]={n:0,g:0,net:0};if(m.gross){mg[k].n++;mg[k].g+=m.gross;mg[k].net+=m.net}});
+  a.forEach(r=>{let m=moneyFor(r);let k=r.motivo||'(Vacío)';if(!mg[k])mg[k]={n:0,g:0,net:0};if(m.gross){mg[k].n++;mg[k].g+=m.gross;mg[k].net+=m.net}});
   document.getElementById('moneyGestionTable').innerHTML=Object.entries(mg).sort((a,b)=>b[1].g-a[1].g).map(([k,x])=>`<tr><td>${esc(k)}</td><td>${fmt(x.n)}</td><td>Q ${x.g.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${x.net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('');
 }
 function loadRemote(){
