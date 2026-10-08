@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard Productividad PBS</title>
+<style>
+:root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#687386;--line:#e5eaf1;--accent:#155eef;--good:#079455;--warn:#f79009;--bad:#d92d20;--shadow:0 8px 28px rgba(16,24,40,.07)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.header{background:linear-gradient(135deg,#0b1f3a,#155eef);color:#fff;padding:24px 28px}
+.header h1{margin:0 0 5px;font-size:25px}.header p{margin:0;opacity:.82}
+.wrap{max-width:1500px;margin:auto;padding:18px}
+.panel,.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.panel{padding:16px;margin-bottom:16px}.panel h2{font-size:16px;margin:0 0 14px}
+.filters{display:grid;grid-template-columns:repeat(5,minmax(150px,1fr));gap:10px}
+label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px}
+select,input,textarea,button{font:inherit}select,input{width:100%;border:1px solid #d5dce6;border-radius:9px;padding:9px;background:#fff;color:var(--text)}
+.actions{display:flex;gap:9px;align-items:end}.btn{border:0;border-radius:9px;padding:10px 13px;cursor:pointer;font-weight:700}.primary{background:var(--accent);color:#fff}.secondary{background:#eef3ff;color:#174ea6}.danger{background:#fff0ef;color:#b42318}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.card{padding:15px}.kpi-label{font-size:11px;color:var(--muted);font-weight:700}.kpi-value{font-size:25px;font-weight:800;margin:5px 0}.kpi-sub{font-size:11px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.metric{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metricbox{border:1px solid var(--line);border-radius:10px;padding:12px}.metricbox b{display:block;font-size:20px;margin-top:3px}
+.progress{height:11px;background:#edf1f5;border-radius:99px;overflow:hidden;margin:10px 0}.bar{height:100%;background:var(--accent);border-radius:99px}
+.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.chart{height:250px;display:flex;align-items:flex-end;gap:5px;border-bottom:1px solid var(--line);padding:15px 5px 0;overflow:hidden}
+.barcol{flex:1;min-width:10px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}.barfill{background:#4f7df3;border-radius:5px 5px 0 0;min-height:2px}.barlabel{font-size:9px;color:var(--muted);text-align:center;margin-top:4px;white-space:nowrap;overflow:hidden}
+.legend{font-size:11px;color:var(--muted);margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-size:10px;text-transform:uppercase}tbody tr:hover{background:#f8fafc}.tablewrap{overflow:auto;max-height:450px}
+.badge{display:inline-block;border-radius:99px;padding:4px 8px;font-size:10px;font-weight:800}.bgood{background:#ecfdf3;color:#067647}.bwarn{background:#fffaeb;color:#b54708}.bbad{background:#fef3f2;color:#b42318}
+.drop{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:12px}.drop textarea{margin-top:8px;height:90px}
+.note{font-size:11px;color:var(--muted);line-height:1.5}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.filters{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.kpis,.grid2,.grid3,.filters{grid-template-columns:1fr}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="header"><div class="wrap" style="padding:0">
+<h1>Dashboard de Productividad PBS</h1><p>Control mensual de visitas, metas, productividad y distribución operativa · Histórico acumulativo</p>
+</div></div>
+
+<div class="wrap"><div class="panel" style="margin-bottom:16px"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div></div>
+
+
+<div class="panel">
+<h2>☁️ Conexión de datos</h2>
+<div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+<div><label>URL de Google Apps Script</label><input id="apiUrl" value="https://script.google.com/macros/s/AKfycbw5hY81H53uxuYDuNdOeSDhKDY62vpyy8iwjgwnth8oBQrUrJxH3rp8eK9xblxTc8Og/exec" placeholder="https://script.google.com/macros/s/.../exec"></div>
+<div class="actions"><button class="btn primary" onclick="loadRemote()">🔄 Actualizar datos</button></div>
+</div>
+<div id="remoteStatus" class="note" style="margin-top:10px">El dashboard está en modo consulta. Los datos se actualizan desde Google Sheets.</div>
+</div>
+
+<div class="panel">
+<h2>🔎 Filtros</h2>
+<div class="filters">
+<div><label>Fecha desde</label><input type="date" id="fFrom" onchange="render()"></div>
+<div><label>Fecha hasta</label><input type="date" id="fTo" onchange="render()"></div>
+<div><label>Gestión</label><select id="fGestion" onchange="render()"></select></div>
+<div><label>Aplica Pago</label><select id="fPago" onchange="render()"></select></div>
+<div><label>AREA PBS</label><select id="fArea" onchange="render()"></select></div>
+<div><label>Sub Area</label><select id="fSub" onchange="render()"></select></div>
+<div><label>Ejecutivo</label><select id="fExec" onchange="render()"></select></div>
+<div><label>Departamento</label><select id="fDept" onchange="render()"></select></div>
+<div><label>Municipio</label><select id="fMun" onchange="render()"></select></div>
+<div><label>Zona</label><select id="fZona" onchange="render()"></select></div>
+<div><label>Meta mensual por ejecutivo</label><input id="metaMensual" type="number" value="375" min="1" onchange="render()"></div>
+<div><label>Meta diaria por ejecutivo</label><input id="metaDiaria" type="number" value="20" min="1" onchange="render()"></div>
+</div>
+<div style="margin-top:10px"><button class="btn secondary" onclick="resetFilters()">Restablecer filtros</button></div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="grid2">
+<div class="panel"><h2>📊 Visitas diarias vs meta</h2><div id="dailyChart" class="chart"></div><div class="legend">La meta diaria se calcula como técnicos activos × meta diaria.</div></div>
+<div class="panel"><h2>🎯 Cumplimiento general</h2><div id="generalGoal"></div></div>
+</div>
+
+<div class="panel">
+<h2>💰 Producción económica</h2>
+<div class="filters" style="grid-template-columns:repeat(4,minmax(160px,1fr))">
+<div><label>Tipo de cambio Q/USD</label><input id="fx" type="number" value="7.75" min="0.01" step="0.01" onchange="render()"></div>
+<div><label>IVA</label><input value="12%" disabled></div>
+<div><label>Regla de producción</label><input value="Solo Aplica Pago = Sí" disabled></div>
+<div><label>Precios</label><input value="Capital / Departamental" disabled></div>
+</div>
+<div class="kpis" id="moneyKpis" style="margin-top:12px;margin-bottom:0"></div>
+</div>
+
+<div class="grid2">
+<div class="panel"><h2>🏙️ Producción por operación</h2>
+<div class="tablewrap"><table><thead><tr><th>Operación</th><th>Visitas con pago</th><th>Con IVA</th><th>Sin IVA</th><th>USD</th></tr></thead><tbody id="moneyAreaTable"></tbody></table></div>
+</div>
+<div class="panel"><h2>🔧 Producción por gestión</h2>
+<div class="tablewrap"><table><thead><tr><th>Gestión</th><th>Visitas</th><th>Con IVA</th><th>Sin IVA</th></tr></thead><tbody id="moneyGestionTable"></tbody></table></div>
+</div>
+</div>
+
+<div class="grid3">
+<div class="panel"><h2>🏙️ Capital - Ruta</h2><div id="capitalRuta"></div></div>
+<div class="panel"><h2>🏗️ Capital - Proyecto</h2><div id="capitalProyecto"></div></div>
+<div class="panel"><h2>🌎 Departamental</h2><div id="departamental"></div></div>
+</div>
+
+<div class="panel"><h2>👨‍🔧 Técnicos en calle / distribución operativa</h2><div id="staff"></div></div>
+
+<div class="grid2">
+<div class="panel"><h2>🏆 Productividad por ejecutivo</h2><div class="tablewrap"><table><thead><tr><th>#</th><th>Ejecutivo</th><th>Visitas</th><th>Meta</th><th>%</th><th>Diferencia</th><th>Producción</th><th>Producción</th></tr></thead><tbody id="execTable"></tbody></table></div></div>
+<div class="panel"><h2>🔧 Visitas por gestión</h2><div class="tablewrap"><table><thead><tr><th>Gestión</th><th>Visitas</th><th>%</th></tr></thead><tbody id="gestionTable"></tbody></table></div></div>
+</div>
+
+<div class="grid2">
+<div class="panel"><h2>📍 Visitas por departamento</h2><div class="tablewrap"><table><thead><tr><th>Departamento</th><th>Visitas</th><th>%</th></tr></thead><tbody id="deptTable"></tbody></table></div></div>
+<div class="panel"><h2>⚠️ Razones / incidencias</h2><div class="tablewrap"><table><thead><tr><th>Razón</th><th>Casos</th><th>%</th></tr></thead><tbody id="reasonTable"></tbody></table></div></div>
+</div>
+
+
+</div>
+
+<div class="wrap"><div class="note" style="padding:8px 0 24px;text-align:center">Dashboard PBS · Solo lectura · Datos actualizados desde Google Sheets</div></div>
+<script>
+let rows=[], headers=[];
+const sample=`Fecha\tHora\tCorrelativo\tGestión\tMotivo\tEjecutivo\tCampaña\tNombre Comercio\tDirección\tDepartamento\tMunicipio\tZona\tRuta\tRazón\tTerminal(1,1)\tComentario del Trabajo\tAREA PBS\tSub Area\tAplica Pago
+01/06/2026\tPrueba\t26050110285212\t79364145\tAvería\tAbdi Jahaziel García Archila\tPredeterminado\tMOAUTO SUCURSAL N 8\t4 CALLE 5-36 ZONA 9\tGuatemala\tGuatemala\t9\tC 36\tDispatch mal asignado\t\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26050111440733\t79694368\tInstalación\tAldo Renato Bejarano Tamayo\tPredeterminado\tRENTACOM CENTRAL\t6 AVENIDA 3-25 ZONA 9\tGuatemala\tGuatemala\t9\tC 36\tDispatch mal asignado\t\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26050119485271\t\tMantenimiento\tAlan Daniel Juarez Acabal\tPredeterminado\tDISTEFANO T&C PUERTO BARRIOS I\tCC PRADERA PUERTO BARRIOS\tIzabal\tPuerto Barrios\tN/A\tD 02\t\t45718270\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26050115040631\t79758297\tMigración\tEduardo Jose Cordon Cardenas\tPredeterminado\tJUANSA\tBOULEVARD CENMA 2-91 VN Z.12\tGuatemala\tVilla Canales\tN/A\tC 24\tDispatch mal asignado\t\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26050111593477\t\tRecuperación\tGerson Antonio Villalta Pérez\tRecencias 2026\tHACIENDAS LAS CARRETAS\tMZ E LT2 RES VILLAS SUR V.CANA\tGuatemala\tPetapa\tN/A\tC 24\t\tNO APLICA\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26050111414052\t14252610\tReprogramación\tGustavo Adolfo Briones Méndez\tPredeterminado\tCELU-VARIEDADES ANGELITO\tCOLONIA SANTA TERESITA 2 8 AVENIDA 1 61 LOCAL 2 ZONA 10 SAN MIGUEL PETAPA GUATEMALA\tGuatemala\tPetapa\tN/A\tC 24\t\t9935707\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26055714314770\t79001509\tAvería\tJavier Adrián Pineda Virula\tProyectos Soporte\tFERROMAX SMP\tCALLE PRIN SAN MIGUEL PET Z10\tGuatemala\tPetapa\tN/A\tC 24\t\tVG045276\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26050116250371\t\tInstalación\tJulio Alexander Pérez Mejía\tPredeterminado\tDOMINOS 14015 BOCA DEL MONTE\t1CA 0-70 APTO A Z1 ALD.BC.D.\tGuatemala\tPetapa\tN/A\tC 24\t\t39528286\t\tCapital\tRuta\tSi
+01/06/2026\tPrueba\t26055914234230\t79299700\tMantenimiento\tJulio Cesar Chavez de Mata\tPredeterminado\tDOMINOS 14015 BOCA DEL MONTE\t0 AV B 1-31 Z1 BOCA DEL MONTE\tGuatemala\tVilla Canales\tN/A\tC 24\t\tP4241178\t\tCapital\tRuta\tSi`;
+function norm(s){return String(s??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function key(h){let n=norm(h); if(n==='gestión'||n==='gestion')return'gestion'; if(n.includes('ejecutivo'))return'ejecutivo'; if(n.includes('area pbs'))return'area'; if(n==='sub area'||n==='subarea')return'sub'; if(n.includes('aplica pago'))return'pago'; if(n==='fecha')return'fecha'; if(n==='departamento')return'departamento'; if(n==='municipio')return'municipio'; if(n==='zona')return'zona'; if(n==='razón'||n==='razon')return'razon'; if(n==='ruta')return'ruta'; return n}
+function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim()); let delim=lines[0].includes('\t')?'\t':','; let hs=lines[0].split(delim).map(x=>x.trim()); headers=hs; rows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim())); populate();render()}
+const STORAGE_KEY='pbs_dashboard_historico_v2';
+function saveStore(){localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,savedAt:new Date().toISOString()}));}
+function loadStore(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(x&&Array.isArray(x.rows)){headers=x.headers||[];rows=x.rows;populate();render();return true}}catch(e){}return false}
+function rowSignature(r){return [r.fecha,r.correlativo,r.gestion,r.ejecutivo,r['nombre comercio'],r.departamento,r.municipio,r.zona,r.ruta,r['terminal(1,1)'],r.pago].map(x=>String(x||'').trim().toLowerCase()).join('¦')}
+function mergeRows(newRows,newHeaders){let existing=new Set(rows.map(rowSignature));let added=0;newRows.forEach(r=>{let s=rowSignature(r);if(!existing.has(s)){rows.push(r);existing.add(s);added++}});if(newHeaders?.length)headers=newHeaders;saveStore();populate();render();return added}
+function parseAndMerge(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));let added=mergeRows(newRows,hs);document.getElementById('paste').value='';alert(`Se agregaron ${added} registros nuevos.\nEl histórico total ahora tiene ${rows.length} registros.`)}
+function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));rows=[];mergeRows(newRows,hs)}
+function loadPaste(){let t=document.getElementById('paste').value;if(t.trim())parseAndMerge(t)}
+function loadSample(){if(rows.length&& !confirm('Esto agregará los datos de ejemplo al histórico. ¿Continuar?'))return;parseAndMerge(sample)}
+function clearData(){if(confirm('¿Borrar TODO el histórico guardado en este navegador? Esta acción no se puede deshacer.')){rows=[];headers=[];localStorage.removeItem(STORAGE_KEY);populate();render();}}
+function exportJSON(){let blob=new Blob([JSON.stringify({headers,rows,savedAt:new Date().toISOString()},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='PBS_Historico.json';a.click();URL.revokeObjectURL(a.href)}
+function importJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.rows))throw Error();let added=mergeRows(x.rows,x.headers||[]);alert(`Respaldo cargado. Se agregaron ${added} registros nuevos.`)}catch(err){alert('El archivo de respaldo no es válido.')}};r.readAsText(f)}
+function loadCSV(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>parseAndMerge(r.result);r.readAsText(f,'UTF-8')}
+function uniq(k){return [...new Set(rows.map(r=>r[k]).filter(x=>String(x).trim()))].sort((a,b)=>String(a).localeCompare(String(b),'es'))}
+function setSelect(id,arr){let s=document.getElementById(id),v=s.value;s.innerHTML='<option value="">Todos</option>'+arr.map(x=>`<option>${esc(x)}</option>`).join('');if(arr.includes(v))s.value=v}
+function populate(){setSelect('fGestion',uniq('gestion'));setSelect('fPago',uniq('pago'));setSelect('fArea',uniq('area'));setSelect('fSub',uniq('sub'));setSelect('fExec',uniq('ejecutivo'));setSelect('fDept',uniq('departamento'));setSelect('fMun',uniq('municipio'));setSelect('fZona',uniq('zona'))}
+function dateVal(x){let m=String(x||'').match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);return m?new Date(+m[3],+m[2]-1,+m[1]):null}
+function filtered(){let a=rows;let fs=document.getElementById('fFrom').value,ts=document.getElementById('fTo').value;
+return a.filter(r=>{let d=dateVal(r.fecha);return(!fs||!d||d>=new Date(fs+'T00:00:00'))&&(!ts||!d||d<=new Date(ts+'T23:59:59'))&&['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].every(id=>{let k={fGestion:'gestion',fPago:'pago',fArea:'area',fSub:'sub',fExec:'ejecutivo',fDept:'departamento',fMun:'municipio',fZona:'zona'}[id];return !document.getElementById(id).value||r[k]===document.getElementById(id).value})})}
+function group(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]=(o[v]||0)+1});return o}
+function fmt(n){return Number(n||0).toLocaleString('es-GT',{maximumFractionDigits:2})}
+function pct(x){return Number.isFinite(x)?x.toFixed(2)+'%':'0.00%'}
+function badge(p){return `<span class="badge ${p>=100?'bgood':p>=90?'bwarn':'bbad'}">${pct(p)}</span>`}
+function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function render(){let a=filtered(),meta=+document.getElementById('metaMensual').value||375,dmeta=+document.getElementById('metaDiaria').value||20;
+let execs=uniqFrom(a,'ejecutivo'),tech=execs.length,dates=[...new Set(a.map(r=>{let d=dateVal(r.fecha);return d?d.toISOString().slice(0,10):''}).filter(Boolean))].sort(),days=dates.length,vis=a.length,avg=days?vis/days:0,goal=tech*meta,ach=goal?vis/goal*100:0;
+document.getElementById('kpis').innerHTML=[
+['TOTAL VISITAS',fmt(vis),'Gestiones filtradas'],['DÍAS TRABAJADOS',fmt(days),'Días con registros'],['PROMEDIO DIARIO',fmt(avg),'Visitas por día'],['TÉCNICOS',fmt(tech),'Ejecutivos con visitas'],['META MENSUAL',fmt(goal),'Técnicos × '+meta],['CUMPLIMIENTO',pct(ach),ach>=100?'Sobre meta':'Debajo de meta']
+].map(x=>`<div class="card"><div class="kpi-label">${x[0]}</div><div class="kpi-value">${x[1]}</div><div class="kpi-sub">${x[2]}</div></div>`).join('');
+renderMoney(a);
+goalBox('generalGoal',tech,meta,vis); ['capitalRuta','capitalProyecto','departamental'].forEach(id=>goalBox(id,0,meta,0));
+renderStaff(a,meta);renderExec(a,meta);renderGroupTable('gestionTable',group(a,'gestion'),vis);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderDaily(a,dmeta,tech)}
+function uniqFrom(a,k){return [...new Set(a.map(r=>r[k]).filter(x=>String(x).trim()))]}
+function subsetByArea(a,area,sub){return a.filter(r=>norm(r.area)===norm(area)&&(!sub||norm(r.sub)===norm(sub)))}
+function goalBox(id,forcedTech,meta,vis){let el=document.getElementById(id);if(!el)return;if(id==='capitalRuta'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Ruta')}
+else if(id==='capitalProyecto'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Proyecto')}
+else if(id==='departamental'){let a=filtered().filter(r=>!norm(r.area).includes('capital'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Departamental')}
+else drawGoal(el,forcedTech,meta,vis,'General')}
+function drawGoal(el,t,meta,vis,title){let goal=t*meta,p=goal?vis/goal*100:0,diff=vis-goal;el.innerHTML=`<div class="metric"><div class="metricbox"><span class="kpi-label">Técnicos</span><b>${fmt(t)}</b></div><div class="metricbox"><span class="kpi-label">Meta</span><b>${fmt(goal)}</b></div><div class="metricbox"><span class="kpi-label">Realizado</span><b>${fmt(vis)}</b></div><div class="metricbox"><span class="kpi-label">Resultado</span><b class="${p>=100?'good':p>=90?'warn':'bad'}">${pct(p)}</b></div></div><div class="progress"><div class="bar" style="width:${Math.min(100,Math.max(0,p))}%"></div></div><div class="note">${esc(title)} · ${diff>=0?'<span class="good">+':''}${fmt(diff)}${diff<0?'</span>':''} visitas respecto a meta.</div>`}
+function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),'Departamental':a.filter(r=>!norm(r.area).includes('capital'))};let h='<table><thead><tr><th>Operación</th><th>Técnicos</th><th>Visitas</th><th>Meta mensual</th><th>Cumplimiento</th></tr></thead><tbody>';Object.entries(groups).forEach(([n,x])=>{let t=uniqFrom(x,'ejecutivo').length,g=t*meta,p=g?x.length/g*100:0;h+=`<tr><td>${n}</td><td>${t}</td><td>${fmt(x.length)}</td><td>${fmt(g)}</td><td>${badge(p)}</td></tr>`});h+='</tbody></table>';document.getElementById('staff').innerHTML=h}
+function renderExec(a,meta){let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);document.getElementById('execTable').innerHTML=g.map((x,i)=>{let p=x.n/meta*100;let prod=x.rows.reduce((s,r)=>s+moneyFor(r).gross,0);return`<tr><td>${i+1}</td><td>${esc(x.k)}</td><td>${fmt(x.n)}</td><td>${fmt(meta)}</td><td>${badge(p)}</td><td class="${x.n-meta>=0?'good':'bad'}">${x.n-meta>=0?'+':''}${fmt(x.n-meta)}</td><td>Q ${prod.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`}).join('')}
+function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
+function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
+function renderDaily(a,dmeta,tech){let g=groupRows(a,'fecha').map(x=>{let d=dateVal(x.k);return{...x,d}}).filter(x=>x.d).sort((x,y)=>x.d-y.d);let max=Math.max(dmeta*tech,...g.map(x=>x.n),1);document.getElementById('dailyChart').innerHTML=g.map(x=>`<div class="barcol" title="${esc(x.k)}: ${x.n} visitas"><div class="barfill" style="height:${Math.max(2,x.n/max*100)}%"></div><div class="barlabel">${esc(x.k.slice(0,5))}</div></div>`).join('')||'<div class="note">Sin datos de fecha válidos.</div>'}
+function renderDetail(a){let keys=['fecha','gestion','ejecutivo','nombre comercio','departamento','municipio','zona','ruta','razon','area','sub','pago'];let labels=['Fecha','Gestión','Ejecutivo','Comercio','Departamento','Municipio','Zona','Ruta','Razón','AREA PBS','Sub Area','Aplica Pago'];document.getElementById('detailHead').innerHTML='<tr>'+labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';document.getElementById('detailBody').innerHTML=a.slice(0,1000).map(r=>'<tr>'+keys.map(k=>`<td>${esc(r[k])}</td>`).join('')+'</tr>').join('')}
+
+const TARIFF={
+  capital:{'avería':52.50,'averias':52.50,'instalación':64.92,'instalacion':64.92,'mantenimiento':38.25,'mantenimientos':38.25,'migración':49.00,'migracion':49.00,'recuperación':36.06,'recuperacion':36.06,'reprogramación':39.37,'reprogramacion':39.37},
+  departamental:{'avería':61.50,'averias':61.50,'instalación':73.80,'instalacion':73.80,'mantenimiento':42.00,'mantenimientos':42.00,'migración':53.50,'migracion':53.50,'recuperación':41.00,'recuperacion':41.00,'reprogramación':45.10,'reprogramacion':45.10}
+};
+function tariffFor(r){
+  if(norm(r.pago)!=='si') return 0;
+  const area=norm(r.area);
+  const zone=area.includes('departamental')?'departamental':'capital';
+  return TARIFF[zone][norm(r.gestion)]||0;
+}
+function moneyFor(r){
+  const gross=tariffFor(r);
+  return {gross,net:gross/1.12,iva:gross-(gross/1.12)};
+}
+function renderMoney(a){
+  const fx=+document.getElementById('fx').value||7.75;
+  let gross=0,net=0,iva=0,paid=0;
+  a.forEach(r=>{const m=moneyFor(r);gross+=m.gross;net+=m.net;iva+=m.iva;if(m.gross)paid++});
+  const unpaid=a.length-paid;
+  document.getElementById('moneyKpis').innerHTML=[
+    ['PRODUCCIÓN CON IVA',`Q ${gross.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,`${paid} visitas facturables`],
+    ['PRODUCCIÓN SIN IVA',`Q ${net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'Base sin IVA'],
+    ['IVA',`Q ${iva.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'12% incluido en precios'],
+    ['PRODUCCIÓN USD',`$ ${(gross/fx).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,`Tipo de cambio Q${fx.toFixed(2)}`],
+    ['VISITAS CON PAGO',fmt(paid),'Generan producción'],
+    ['NO FACTURABLES',fmt(unpaid),'Aplica Pago distinto de Sí']
+  ].map(x=>`<div class="card"><div class="kpi-label">${x[0]}</div><div class="kpi-value">${x[1]}</div><div class="kpi-sub">${x[2]}</div></div>`).join('');
+
+  const groups={
+    'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),
+    'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),
+    'Departamental':a.filter(r=>norm(r.area).includes('departamental')||!norm(r.area).includes('capital'))
+  };
+  document.getElementById('moneyAreaTable').innerHTML=Object.entries(groups).map(([name,x])=>{
+    let g=0,n=0,c=0;x.forEach(r=>{let m=moneyFor(r);g+=m.gross;n+=m.net;if(m.gross)c++});
+    return `<tr><td>${name}</td><td>${fmt(c)}</td><td>Q ${g.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${n.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>$ ${(g/fx).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;
+  }).join('');
+
+  const mg={};
+  a.forEach(r=>{let m=moneyFor(r);let k=r.gestion||'(Vacío)';if(!mg[k])mg[k]={n:0,g:0,net:0};if(m.gross){mg[k].n++;mg[k].g+=m.gross;mg[k].net+=m.net}});
+  document.getElementById('moneyGestionTable').innerHTML=Object.entries(mg).sort((a,b)=>b[1].g-a[1].g).map(([k,x])=>`<tr><td>${esc(k)}</td><td>${fmt(x.n)}</td><td>Q ${x.g.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${x.net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('');
+}
+async function loadRemote(){
+  const url=document.getElementById('apiUrl').value.trim();
+  const status=document.getElementById('remoteStatus');
+  if(!url){status.innerHTML='<span class="bad">Ingresa la URL del Apps Script.</span>';return;}
+  status.textContent='Consultando Google Sheets...';
+  try{
+    const res=await fetch(url,{cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    if(data.error) throw new Error(data.error);
+    if(!Array.isArray(data.headers)||!Array.isArray(data.rows)) throw new Error('La respuesta no tiene el formato esperado.');
+    const hs=data.headers.map(x=>String(x));
+    const newRows=data.rows.map(arr=>{let o={};hs.forEach((h,i)=>o[key(h)]=arr[i]??'');o._raw=arr;return o;}).filter(r=>Object.values(r).some(v=>String(v).trim()));
+    rows=newRows; headers=hs;
+    populate(); render();
+    const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
+    status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' registros · '+esc(stamp);
+    localStorage.setItem('pbs_api_url',url);
+  }catch(err){
+    console.error(err);
+    status.innerHTML='<span class="bad">No se pudieron cargar los datos: '+esc(err.message||err)+'</span><br><span class="note">Si el archivo se abre como archivo local (file://), algunos navegadores pueden bloquear la consulta. En ese caso lo probaremos al publicarlo en GitHub Pages.</span>';
+  }
+}
+function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
+
+function resetFilters(){['fFrom','fTo'].forEach(x=>document.getElementById(x).value='');['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].forEach(x=>document.getElementById(x).value='');render()}
+restoreApiUrl(); rows=[]; headers=[]; populate(); render(); setTimeout(()=>loadRemote(),300);
+</script>
+</body>
+</html>
