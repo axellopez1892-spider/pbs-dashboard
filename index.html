@@ -32,7 +32,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 .exec-detail-table thead th{position:sticky;top:0;background:#fff;z-index:3}
 .exec-detail-table thead th:nth-child(2){z-index:4}
 .exec-detail-table tbody td:last-child{font-weight:800}
-.badge{display:inline-block;border-radius:99px;padding:4px 8px;font-size:10px;font-weight:800}.bgood{background:#ecfdf3;color:#067647}.bwarn{background:#fffaeb;color:#b54708}.bbad{background:#fef3f2;color:#b42318}
+.badge{display:inline-block;border-radius:99px;padding:4px 8px;font-size:10px;font-weight:800}.bgood{background:#ecfdf3;color:#067647}.bwarn{background:#fffaeb;color:#b54708}.bbad{background:#fef3f2;color:#b42318}.alert-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.alert-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}.alert-card .alert-title{font-size:12px;font-weight:800;display:flex;align-items:center;gap:7px}.alert-card .alert-number{font-size:28px;font-weight:850;margin:5px 0 2px}.alert-card .alert-text{font-size:11px;color:var(--muted);line-height:1.45}.alert-card.alert-bad{border-left:4px solid var(--bad);background:#fffafa}.alert-card.alert-warn{border-left:4px solid var(--warn);background:#fffdf7}.alert-card.alert-good{border-left:4px solid var(--good);background:#f9fffb}.alert-details{margin-top:10px;max-height:125px;overflow:auto;font-size:10px;color:var(--muted)}.alert-details span{display:inline-block;margin:3px 4px 0 0;padding:4px 7px;border-radius:999px;background:#f2f4f7;color:#344054}@media(max-width:900px){.alert-grid{grid-template-columns:1fr}}
 .drop{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;text-align:center;color:var(--muted);font-size:12px}.drop textarea{margin-top:8px;height:90px}
 .note{font-size:11px;color:var(--muted);line-height:1.5}
 .data-status-box{border:1px solid #b7e4c7;background:#effaf3;border-radius:10px;padding:9px 12px;min-height:64px;display:flex;flex-direction:column;justify-content:center}.data-status-title{font-size:10px;font-weight:800;color:#067647}.data-status-date{font-size:16px;font-weight:800;color:#172033;margin-top:2px}.data-status-sync{font-size:10px;color:#667085;margin-top:2px}@media(max-width:900px){.data-status-box{grid-column:1/-1}.actions{justify-content:flex-start}}
@@ -126,6 +126,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div class="panel"><h2>📍 Visitas por departamento</h2><div class="tablewrap"><table><thead><tr><th>Departamento</th><th>Visitas</th><th>%</th></tr></thead><tbody id="deptTable"></tbody></table></div></div>
 <div class="panel"><h2>⚠️ Razones / incidencias</h2><div class="tablewrap"><table><thead><tr><th>Razón</th><th>Casos</th><th>%</th></tr></thead><tbody id="reasonTable"></tbody></table></div></div>
 </div>
+
+<div class="panel"><h2>🚨 Alertas de productividad</h2><div id="productivityAlerts" class="alert-grid"></div><div class="note" style="margin-top:10px">Las alertas se calculan automáticamente con la meta mensual configurada y el ritmo de trabajo observado en el período filtrado.</div></div>
 
 <div class="panel" id="campaignPanel">
 <h2>🔄 Control de campañas específicas</h2>
@@ -260,7 +262,7 @@ document.getElementById('kpis').innerHTML=[
 ].map(x=>`<div class="card"><div class="kpi-label">${x[0]}</div><div class="kpi-value">${x[1]}</div><div class="kpi-sub">${x[2]}</div></div>`).join('');
 renderMoney(a);
 goalBox('generalGoal',tech,meta,vis); ['capitalRuta','capitalProyecto','departamental'].forEach(id=>goalBox(id,0,meta,0));
-renderStaff(a,meta);renderExec(a,meta);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderDaily(a,dmeta,tech)}
+renderStaff(a,meta);renderExec(a,meta);renderGroupTable('deptTable',group(a,'departamento'),vis);renderGroupTable('reasonTable',group(a,'razon'),vis,true);renderAlerts(a,meta);renderDaily(a,dmeta,tech)}
 function uniqFrom(a,k){return [...new Set(a.map(r=>r[k]).filter(x=>String(x).trim()))]}
 function subsetByArea(a,area,sub){return a.filter(r=>norm(r.area)===norm(area)&&(!sub||norm(r.sub)===norm(sub)))}
 function goalBox(id,forcedTech,meta,vis){let el=document.getElementById(id);if(!el)return;if(id==='capitalRuta'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Ruta')}
@@ -292,6 +294,68 @@ function renderExec(a,meta){
 }
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
 function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
+function businessDaysInMonth(d){
+  if(!d)return 0;
+  const y=d.getFullYear(),m=d.getMonth();
+  let n=0,day=new Date(y,m,1);
+  while(day.getMonth()===m){const w=day.getDay();if(w!==0&&w!==6)n++;day.setDate(day.getDate()+1)}
+  return n;
+}
+function businessDaysElapsed(start,end){
+  if(!start||!end)return 0;
+  const a=new Date(start);a.setHours(0,0,0,0);const b=new Date(end);b.setHours(0,0,0,0);
+  if(a>b)return 0;
+  let n=0,d=new Date(a);
+  while(d<=b){const w=d.getDay();if(w!==0&&w!==6)n++;d.setDate(d.getDate()+1)}
+  return n;
+}
+function renderAlerts(a,meta){
+  const el=document.getElementById('productivityAlerts');
+  if(!el)return;
+  const groups=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);
+  if(!groups.length){
+    el.innerHTML='<div class="note">No hay ejecutivos para generar alertas con los filtros actuales.</div>';
+    return;
+  }
+  const under50=groups.filter(x=>x.n/meta*100<50);
+  const risk=groups.filter(x=>{const p=x.n/meta*100;return p>=50&&p<90});
+  const positive=groups.filter(x=>x.n/meta*100>=90);
+
+  const dates=a.map(r=>dateVal(r.fecha)).filter(Boolean).sort((x,y)=>x-y);
+  let trendBelow=[];
+  if(dates.length){
+    const start=dates[0],latest=dates[dates.length-1];
+    const elapsed=businessDaysElapsed(start,latest);
+    const totalMonthDays=businessDaysInMonth(latest);
+    if(elapsed>0&&totalMonthDays>0){
+      trendBelow=groups.filter(x=>{
+        const projected=(x.n/elapsed)*totalMonthDays;
+        return projected<meta;
+      });
+    }
+  }
+
+  const list=(arr)=>arr.length?arr.slice(0,8).map(x=>`<span>${esc(x.k)}</span>`).join(''):'<span>Ninguno</span>';
+  el.innerHTML=`
+    <div class="alert-card alert-bad">
+      <div class="alert-title">🔴 Atención</div>
+      <div class="alert-number bad">${fmt(under50.length)}</div>
+      <div class="alert-text">ejecutivos por debajo del <b>50%</b> de la meta mensual.</div>
+      <div class="alert-details">${list(under50)}</div>
+    </div>
+    <div class="alert-card alert-warn">
+      <div class="alert-title">🟠 Riesgo</div>
+      <div class="alert-number warn">${fmt(trendBelow.length)}</div>
+      <div class="alert-text">ejecutivos cuya <b>tendencia mensual</b> proyecta quedar por debajo de la meta.</div>
+      <div class="alert-details">${list(trendBelow)}</div>
+    </div>
+    <div class="alert-card alert-good">
+      <div class="alert-title">🟢 Positivo</div>
+      <div class="alert-number good">${fmt(positive.length)}</div>
+      <div class="alert-text">ejecutivos que ya alcanzaron o superaron el <b>90%</b> de la meta.</div>
+      <div class="alert-details">${list(positive)}</div>
+    </div>`;
+}
 function renderDaily(a,dmeta,tech){
   // Meta fija de lunes a viernes: cantidad de ejecutivos/técnicos incluidos
   // en los filtros × meta diaria por ejecutivo.
