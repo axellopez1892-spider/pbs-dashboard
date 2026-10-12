@@ -23,7 +23,7 @@ select,input,textarea,button{font:inherit}select,input{width:100%;border:1px sol
 .progress{height:11px;background:#edf1f5;border-radius:99px;overflow:hidden;margin:10px 0}.bar{height:100%;background:var(--accent);border-radius:99px}
 .good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
 .chart{height:330px;display:flex;align-items:flex-end;gap:7px;border-bottom:1px solid var(--line);padding:32px 5px 0;overflow-x:auto;overflow-y:hidden}
-.chart.daily-combo-chart{height:330px;display:block;padding:0;overflow-x:auto;overflow-y:hidden;border-bottom:0;position:relative}.daily-combo-chart svg{display:block;max-width:none;width:100%;height:100%}.daily-chart-legend{display:flex;justify-content:flex-end;gap:22px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin:-2px 0 8px}.daily-chart-legend span{display:inline-flex;align-items:center;gap:7px}.daily-chart-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;background:#2f8df4}.daily-chart-legend i.goal{width:20px;height:0;border-top:3px solid #ff8a00;border-radius:0;background:transparent;position:relative}.daily-chart-legend i.goal:after{content:"";position:absolute;right:7px;top:-6px;width:8px;height:8px;border:2px solid #ff8a00;background:#fff;border-radius:50%}.daily-chart-footnote{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5}
+.barcol{flex:1 0 48px;min-width:48px;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative}.barfill{background:#4f7df3;border-radius:5px 5px 0 0;min-height:2px;position:relative}.barvalue{position:absolute;left:50%;transform:translateX(-50%);bottom:100%;font-size:11px;font-weight:800;color:#0f172a;white-space:nowrap;margin-bottom:4px}.barmeta{font-size:9px;color:var(--muted);text-align:center;white-space:nowrap;margin-top:5px}.bardiff{font-size:10px;font-weight:800;text-align:center;white-space:nowrap;margin-top:2px}.barlabel{font-size:9px;color:var(--muted);text-align:center;margin-top:5px;white-space:nowrap;overflow:hidden}
 .legend{font-size:11px;color:var(--muted);margin-top:8px}
 table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}th{color:var(--muted);font-size:10px;text-transform:uppercase}tbody tr:hover{background:#f8fafc}.tablewrap{overflow:auto;max-height:450px}.exec-detail-wrap{max-height:450px;overflow:auto}
 .exec-detail-table{min-width:760px}
@@ -128,7 +128,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div class="kpis" id="kpis"></div>
 
 <div class="grid2">
-<div class="panel"><h2>📊 Visitas diarias vs meta del período</h2><div class="daily-chart-legend"><span><i></i>Visitas realizadas</span><span><i class="goal"></i>Meta diaria</span></div><div id="dailyChart" class="chart daily-combo-chart"></div><div class="daily-chart-footnote">Las barras muestran las visitas registradas cada día. La línea representa la meta del equipo (técnicos incluidos en los filtros × meta diaria por ejecutivo). Sábados y domingos son días libres y no generan meta. Usa los filtros de fecha para consultar el período deseado.</div></div>
+<div class="panel"><h2>📊 Visitas diarias vs meta</h2><div id="dailyChart" class="chart"></div><div class="legend"><b>Visitas</b> = realizadas · <b>Meta</b> = técnicos incluidos en los filtros × meta diaria por ejecutivo, de lunes a viernes · <b>Diferencial</b> = visitas − meta · sábado y domingo = días libres. Las metas se pueden modificar desde los filtros.</div></div>
 <div class="panel"><h2>🎯 Cumplimiento general</h2><div id="generalGoal"></div></div>
 </div>
 
@@ -356,70 +356,34 @@ function renderExec(a,meta){
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
 function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
 function renderDaily(a,dmeta,tech){
-  // Gráfica combinada: barras de visitas reales + línea de meta diaria.
-  // Se muestran todos los días del rango filtrado, incluso si hubo cero visitas.
-  // Sábados y domingos son días libres: la línea de meta se interrumpe y no genera deuda.
-  const el=document.getElementById('dailyChart');
-  const fs=document.getElementById('fFrom').value;
-  const ts=document.getElementById('fTo').value;
-  const validDates=a.map(r=>dateVal(r.fecha)).filter(Boolean).sort((x,y)=>x-y);
-  if(!validDates.length){el.innerHTML='<div class="note" style="padding:18px">Sin datos de fecha válidos.</div>';return;}
-  let start=fs?new Date(fs+'T00:00:00'):new Date(validDates[0].getFullYear(),validDates[0].getMonth(),validDates[0].getDate());
-  let end=ts?new Date(ts+'T00:00:00'):new Date(validDates[validDates.length-1].getFullYear(),validDates[validDates.length-1].getMonth(),validDates[validDates.length-1].getDate());
-  if(!fs && ts && end<validDates[0]) start=new Date(end.getFullYear(),end.getMonth(),1);
-  if(!ts && fs && start>validDates[validDates.length-1]) end=new Date(start.getFullYear(),start.getMonth()+1,0);
-  if(end<start){el.innerHTML='<div class="note" style="padding:18px">La fecha final es anterior a la fecha inicial.</div>';return;}
-  // Evitar dibujar rangos accidentalmente enormes; normalmente el filtro será mensual.
-  const days=Math.round((end-start)/86400000)+1;
-  if(days>370){el.innerHTML='<div class="note" style="padding:18px">Selecciona un período de hasta 12 meses para visualizar la gráfica diaria.</div>';return;}
-  const counts={};
-  a.forEach(r=>{const d=dateVal(r.fecha);if(!d)return;const k=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');counts[k]=(counts[k]||0)+1;});
-  const goal=Math.max(0,Number(tech)||0)*Math.max(0,Number(dmeta)||0);
-  const data=[];
-  for(let i=0;i<days;i++){
-    const d=new Date(start.getFullYear(),start.getMonth(),start.getDate()+i);
-    const k=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
-    const weekend=d.getDay()===0||d.getDay()===6;
-    data.push({d,k,day:d.getDate(),actual:counts[k]||0,goal:weekend?null:goal,weekend});
-  }
-  const width=el.clientWidth||720;
-  const height=330,left=38,right=12,top=18,bottom=36,plotW=width-left-right,plotH=height-top-bottom;
-  const maxVal=Math.max(1,...data.map(x=>x.actual),goal);
-  const yMax=Math.ceil(maxVal/50)*50||50;
-  const y=v=>top+plotH-(v/yMax)*plotH;
-  const step=plotW/data.length;
-  const barW=Math.max(4,Math.min(17,step*.58));
-  let svg=`<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Visitas diarias en barras y meta diaria en línea" viewBox="0 0 ${width} ${height}" style="width:${width}px;max-width:none;height:${height}px;font-family:Inter,Segoe UI,Arial,sans-serif">`;
-  // Grid and axis labels.
-  for(let i=0;i<=4;i++){
-    const val=yMax*i/4,yy=y(val);
-    svg+=`<line x1="${left}" y1="${yy}" x2="${width-right}" y2="${yy}" stroke="#e7edf5" stroke-width="1"/>`;
-    svg+=`<text x="${left-8}" y="${yy+4}" text-anchor="end" fill="#64748b" font-size="10">${fmt(val)}</text>`;
-  }
-  // Bars and day labels.
-  data.forEach((x,i)=>{
-    const cx=left+step*i+step/2,barY=y(x.actual),bh=Math.max(0,top+plotH-barY);
-    const fill=x.weekend?'#8ba7e8':'#2f8df4';
-    svg+=`<rect x="${cx-barW/2}" y="${barY}" width="${barW}" height="${bh}" rx="2" fill="${fill}" opacity=".96"><title>${x.k}: ${fmt(x.actual)} visitas${x.weekend?' · Día libre':' · Meta: '+fmt(x.goal)}</title></rect>`;
-    svg+=`<text x="${cx}" y="${height-13}" text-anchor="middle" fill="#52627a" font-size="10">${x.day}</text>`;
-  });
-  // Draw separate line segments so the goal line does not cross weekends.
-  let segment=[];
-  const drawSegment=pts=>{
-    if(!pts.length)return '';
-    let out='';
-    if(pts.length>1)out+=`<polyline points="${pts.map(p=>p.cx+','+p.cy).join(' ')}" fill="none" stroke="#ff8a00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
-    pts.forEach(p=>{out+=`<circle cx="${p.cx}" cy="${p.cy}" r="4" fill="#fff" stroke="#ff8a00" stroke-width="2.5"><title>${p.k}: meta diaria ${fmt(goal)}</title></circle>`;});
-    return out;
-  };
-  data.forEach((x,i)=>{
-    if(x.goal===null){svg+=drawSegment(segment);segment=[];return;}
-    segment.push({cx:left+step*i+step/2,cy:y(x.goal),k:x.k});
-  });
-  svg+=drawSegment(segment);
-  svg+='</svg>';
-  el.innerHTML=svg;
-  el.scrollLeft=0;
+  // Meta fija de lunes a viernes: cantidad de ejecutivos/técnicos incluidos
+  // en los filtros × meta diaria por ejecutivo.
+  // IMPORTANTE: NO se recalcula por la cantidad de técnicos que tuvieron visitas ese día.
+  // Sábado y domingo son días libres: meta 0 y diferencial no aplica.
+  let weekdayGoal=Math.max(0,tech*dmeta);
+  let g=groupRows(a,'fecha').map(x=>{
+    let d=dateVal(x.k);
+    let day=d?d.getDay():null; // 0 domingo, 6 sábado
+    let weekend=day===0||day===6;
+    let dailyGoal=weekend?0:weekdayGoal;
+    let diff=weekend?null:x.n-dailyGoal;
+    return {...x,d,weekend,dailyGoal,diff};
+  }).filter(x=>x.d).sort((x,y)=>x.d-y.d);
+
+  let max=Math.max(...g.map(x=>Math.max(x.n,x.dailyGoal)),1);
+  document.getElementById('dailyChart').innerHTML=g.map(x=>{
+    let diffClass=x.weekend?'warn':(x.diff>=0?'good':'bad');
+    let diffText=x.weekend?'—':((x.diff>=0?'+':'')+fmt(x.diff));
+    let metaText=x.weekend?'Libre':'Meta: '+fmt(x.dailyGoal);
+    let pctHeight=Math.max(2,x.n/max*100);
+    let dayName=x.weekend?'Día libre':'Día laboral';
+    return `<div class="barcol" title="${esc(x.k)} · ${x.n} visitas · ${dayName} · ${x.weekend?'sin meta':('Meta '+x.dailyGoal+' · Diferencial '+diffText)}">
+      <div class="barfill" style="height:${pctHeight}%"><div class="barvalue">${fmt(x.n)}</div></div>
+      <div class="barmeta">${metaText}</div>
+      <div class="bardiff ${diffClass}">${diffText}</div>
+      <div class="barlabel">${esc(x.k.slice(0,5))}</div>
+    </div>`;
+  }).join('')||'<div class="note">Sin datos de fecha válidos.</div>'
 }
 function renderDetail(a){let keys=['fecha','gestion','ejecutivo','nombre comercio','departamento','municipio','zona','ruta','razon','area','sub','pago'];let labels=['Fecha','Gestión','Ejecutivo','Comercio','Departamento','Municipio','Zona','Ruta','Razón','AREA PBS','Sub Area','Aplica Pago'];document.getElementById('detailHead').innerHTML='<tr>'+labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';document.getElementById('detailBody').innerHTML=a.slice(0,1000).map(r=>'<tr>'+keys.map(k=>`<td>${esc(r[k])}</td>`).join('')+'</tr>').join('')}
 
