@@ -20,6 +20,19 @@ select,input,textarea,button{font:inherit}select,input{width:100%;border:1px sol
 .card{padding:15px}.kpi-label{font-size:11px;color:var(--muted);font-weight:700}.kpi-value{font-size:25px;font-weight:800;margin:5px 0}.kpi-sub{font-size:11px;color:var(--muted)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .metric{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metricbox{border:1px solid var(--line);border-radius:10px;padding:12px}.metricbox b{display:block;font-size:20px;margin-top:3px}
+.compliance-charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.compliance-chart-card{border:1px solid var(--line);border-radius:11px;padding:13px;min-width:0;background:#fff}
+.compliance-chart-title{font-size:13px;font-weight:800;margin-bottom:4px}
+.compliance-chart-subtitle{font-size:11px;color:var(--muted);margin-bottom:10px}
+.compliance-bar-svg,.compliance-donut-svg{display:block;width:100%;height:auto;max-height:250px}
+.compliance-legend{display:flex;justify-content:center;gap:15px;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:8px}
+.compliance-legend span{display:inline-flex;align-items:center;gap:6px}
+.compliance-legend i{display:inline-block;width:9px;height:9px;border-radius:50%}
+.compliance-donut-layout{display:grid;grid-template-columns:minmax(120px,1fr) minmax(105px,1fr);align-items:center;gap:8px}
+.compliance-donut-key{font-size:11px;color:var(--muted);line-height:1.7}
+.compliance-donut-key b{display:block;color:var(--text);font-size:15px}
+@media(max-width:700px){.compliance-charts{grid-template-columns:1fr}.compliance-donut-layout{grid-template-columns:1fr 1fr}}
+
 .progress{height:11px;background:#edf1f5;border-radius:99px;overflow:hidden;margin:10px 0}.bar{height:100%;background:var(--accent);border-radius:99px}
 .good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
 .chart{height:330px;display:flex;align-items:flex-end;gap:7px;border-bottom:1px solid var(--line);padding:32px 5px 0;overflow-x:auto;overflow-y:hidden}
@@ -50,6 +63,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
   .kpis{grid-template-columns:repeat(6,1fr)}
   .grid2{grid-template-columns:1fr 1fr}
   .grid3{grid-template-columns:repeat(3,1fr)}
+  .compliance-charts{grid-template-columns:1fr 1fr}
+  .compliance-chart-card{break-inside:avoid}
   .tablewrap,.exec-detail-wrap{max-height:none;overflow:visible}
   .chart{height:260px;overflow:visible}
   table{font-size:10px}
@@ -127,10 +142,9 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 
 <div class="kpis" id="kpis"></div>
 
-<div class="grid2">
-<div class="panel"><h2>📊 Visitas diarias vs meta del período</h2><div class="daily-chart-legend"><span><i style="background:#1769d2"></i>Visitas realizadas</span><span><i class="goal" style="border-top-color:#f2ad24"></i>Meta diaria</span></div><div id="dailyChart" class="chart daily-combo-chart"></div><div class="daily-chart-footnote">La línea azul muestra las visitas realizadas y la amarilla la meta diaria del equipo (técnicos incluidos en los filtros × meta diaria por ejecutivo). Cada punto muestra su cantidad. Sábados y domingos no generan meta. Usa los filtros de fecha para consultar el período deseado.</div></div>
 <div class="panel"><h2>🎯 Cumplimiento general</h2><div id="generalGoal"></div></div>
-</div>
+
+<div class="panel"><h2>📈 Visitas diarias vs meta del período</h2><div class="daily-chart-legend"><span><i style="background:#1769d2"></i>Visitas realizadas</span><span><i class="goal" style="border-top-color:#f2ad24"></i>Meta diaria</span></div><div id="dailyChart" class="chart daily-combo-chart"></div><div class="daily-chart-footnote">La línea azul muestra las visitas realizadas y la amarilla la meta diaria del equipo (técnicos incluidos en los filtros × meta diaria por ejecutivo). Cada punto muestra su cantidad. Sábados y domingos no generan meta. Usa los filtros de fecha para consultar el período deseado.</div></div>
 
 <div class="panel">
 <h2>💰 Producción económica</h2>
@@ -330,7 +344,48 @@ function goalBox(id,forcedTech,meta,vis){let el=document.getElementById(id);if(!
 else if(id==='capitalProyecto'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Proyecto')}
 else if(id==='departamental'){let a=filtered().filter(r=>!norm(r.area).includes('capital'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Departamental')}
 else drawGoal(el,forcedTech,meta,vis,'General')}
-function drawGoal(el,t,meta,vis,title){let goal=t*meta,p=goal?vis/goal*100:0,diff=vis-goal;el.innerHTML=`<div class="metric"><div class="metricbox"><span class="kpi-label">Técnicos</span><b>${fmt(t)}</b></div><div class="metricbox"><span class="kpi-label">Meta</span><b>${fmt(goal)}</b></div><div class="metricbox"><span class="kpi-label">Realizado</span><b>${fmt(vis)}</b></div><div class="metricbox"><span class="kpi-label">Resultado</span><b class="${p>=100?'good':p>=90?'warn':'bad'}">${pct(p)}</b></div></div><div class="progress"><div class="bar" style="width:${Math.min(100,Math.max(0,p))}%"></div></div><div class="note">${esc(title)} · ${diff>=0?'<span class="good">+':''}${fmt(diff)}${diff<0?'</span>':''} visitas respecto a meta.</div>`}
+function drawGoal(el,t,meta,vis,title){
+  const goal=t*meta,p=goal?vis/goal*100:0,diff=vis-goal,pctDone=Math.max(0,Math.min(100,p)),pending=Math.max(0,goal-vis),pendingPct=goal?pending/goal*100:0;
+  const maxBar=Math.max(goal,vis,1),goalH=120*goal/maxBar,visH=120*vis/maxBar;
+  const circumference=2*Math.PI*48,doneDash=circumference*pctDone/100;
+  el.innerHTML=`
+    <div class="metric">
+      <div class="metricbox"><span class="kpi-label">Técnicos</span><b>${fmt(t)}</b></div>
+      <div class="metricbox"><span class="kpi-label">Meta</span><b>${fmt(goal)}</b></div>
+      <div class="metricbox"><span class="kpi-label">Realizado</span><b>${fmt(vis)}</b></div>
+      <div class="metricbox"><span class="kpi-label">Resultado</span><b class="${p>=100?'good':p>=90?'warn':'bad'}">${pct(p)}</b></div>
+    </div>
+    <div class="progress"><div class="bar" style="width:${pctDone}%"></div></div>
+    <div class="note">${esc(title)} · ${diff>=0?'<span class="good">+':''}${fmt(diff)}${diff<0?'</span>':''} visitas respecto a meta.</div>
+    <div class="compliance-charts">
+      <div class="compliance-chart-card">
+        <div class="compliance-chart-title">📊 Meta vs. realizado</div>
+        <div class="compliance-chart-subtitle">Comparación total del período</div>
+        <svg class="compliance-bar-svg" viewBox="0 0 330 190" role="img" aria-label="Comparación entre meta y visitas realizadas">
+          <g stroke="#e5eaf1" stroke-width="1"><line x1="42" y1="24" x2="315" y2="24"/><line x1="42" y1="58" x2="315" y2="58"/><line x1="42" y1="92" x2="315" y2="92"/><line x1="42" y1="126" x2="315" y2="126"/><line x1="42" y1="160" x2="315" y2="160"/></g>
+          <g fill="#687386" font-size="10" text-anchor="end"><text x="35" y="163">0</text><text x="35" y="129">${fmt(maxBar*.25)}</text><text x="35" y="95">${fmt(maxBar*.5)}</text><text x="35" y="61">${fmt(maxBar*.75)}</text><text x="35" y="27">${fmt(maxBar)}</text></g>
+          <line x1="42" y1="160" x2="315" y2="160" stroke="#cbd5e1"/>
+          <rect x="86" y="${160-goalH}" width="62" height="${goalH}" rx="4" fill="#f2ad24"/><rect x="205" y="${160-visH}" width="62" height="${visH}" rx="4" fill="#1769d2"/>
+          <g fill="#172033" font-size="11" font-weight="700" text-anchor="middle"><text x="117" y="${Math.max(13,154-goalH)}">${fmt(goal)}</text><text x="236" y="${Math.max(13,154-visH)}">${fmt(vis)}</text></g>
+          <g fill="#52627a" font-size="11" text-anchor="middle"><text x="117" y="179">Meta</text><text x="236" y="179">Realizado</text></g>
+        </svg>
+        <div class="compliance-legend"><span><i style="background:#f2ad24"></i>Meta</span><span><i style="background:#1769d2"></i>Realizado</span></div>
+      </div>
+      <div class="compliance-chart-card">
+        <div class="compliance-chart-title">🎯 Composición del cumplimiento</div>
+        <div class="compliance-chart-subtitle">Realizado y pendiente para alcanzar la meta</div>
+        <div class="compliance-donut-layout">
+          <svg class="compliance-donut-svg" viewBox="0 0 150 150" role="img" aria-label="Gráfica de anillo del cumplimiento general">
+            <circle cx="75" cy="75" r="48" fill="none" stroke="#e5eaf1" stroke-width="18"/>
+            <circle cx="75" cy="75" r="48" fill="none" stroke="#1769d2" stroke-width="18" stroke-dasharray="${doneDash} ${circumference-doneDash}" transform="rotate(-90 75 75)"/>
+            <text x="75" y="72" text-anchor="middle" fill="#172033" font-size="17" font-weight="800">${pct(p)}</text><text x="75" y="89" text-anchor="middle" fill="#687386" font-size="10">Realizado</text>
+          </svg>
+          <div class="compliance-donut-key"><span>🔵 Realizado</span><b>${fmt(vis)}</b><span>⚪ Pendiente</span><b>${fmt(pending)}</b><span>${pct(pendingPct)} pendiente</span></div>
+        </div>
+        <div class="campaign-status" style="margin-top:6px">Total de referencia: <b>${fmt(goal)} visitas</b></div>
+      </div>
+    </div>`;
+}
 function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),'Departamental':a.filter(r=>!norm(r.area).includes('capital'))};let h='<table><thead><tr><th>Operación</th><th>Técnicos</th><th>Visitas</th><th>Meta mensual</th><th>Cumplimiento</th></tr></thead><tbody>';Object.entries(groups).forEach(([n,x])=>{let t=uniqFrom(x,'ejecutivo').length,g=t*meta,p=g?x.length/g*100:0;h+=`<tr><td>${n}</td><td>${t}</td><td>${fmt(x.length)}</td><td>${fmt(g)}</td><td>${badge(p)}</td></tr>`});h+='</tbody></table>';document.getElementById('staff').innerHTML=h}
 function renderExec(a,meta){
   let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);
