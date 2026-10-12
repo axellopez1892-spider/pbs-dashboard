@@ -58,6 +58,21 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 .pdf-only{display:none}
 
 </style>
+
+<style>
+.management-production-grid{display:grid;grid-template-columns:1fr;gap:18px;margin-top:12px}
+.management-area-block{border:1px solid var(--border,#dbe3ef);border-radius:10px;padding:12px;min-width:0}
+.management-area-block h3{font-size:14px;font-weight:750;margin:0 0 9px}
+.management-area-block table{width:100%;border-collapse:collapse}
+.management-area-block th,.management-area-block td{padding:8px 7px;white-space:nowrap;text-align:left;border-bottom:1px solid var(--border,#dbe3ef);font-size:12px}
+.management-area-block th{font-size:10px;text-transform:uppercase;letter-spacing:.02em}
+.management-area-block td:nth-child(n+2),.management-area-block th:nth-child(n+2){text-align:right}
+.management-area-block tr.total-row td{font-weight:800;border-top:2px solid var(--border,#dbe3ef);background:var(--panel,#f8fafc)}
+.management-total-note{margin-top:7px;line-height:1.6}
+@media(min-width:1100px){.management-production-grid{grid-template-columns:1fr 1fr}}
+@media print{.management-production-grid{grid-template-columns:1fr 1fr}.management-area-block{break-inside:avoid}}
+</style>
+
 </head>
 <body>
 <div class="header"><div class="wrap header-inner" style="padding:0">
@@ -125,8 +140,18 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 <div class="panel"><h2>🏙️ Producción por operación</h2>
 <div class="tablewrap"><table><thead><tr><th>Operación</th><th>Visitas con pago</th><th>Con IVA</th><th>Sin IVA</th><th>USD</th></tr></thead><tbody id="moneyAreaTable"></tbody></table></div>
 </div>
-<div class="panel"><h2>🔧 Producción por gestión</h2>
-<div class="tablewrap"><table><thead><tr><th>Tipo de gestión</th><th>Visitas</th><th>Con IVA</th><th>Sin IVA</th></tr></thead><tbody id="moneyGestionTable"></tbody></table></div>
+<div class="panel"><h2>🔧 Producción por gestión · tarifas por área</h2>
+<div class="management-production-grid">
+  <section class="management-area-block"><h3>🏙️ Capital</h3>
+    <div class="tablewrap"><table><thead><tr><th>Descripción</th><th>Cantidad</th><th>Precio unitario</th><th>Precio total</th></tr></thead><tbody id="capitalManagementTable"></tbody></table></div>
+    <div class="note management-total-note" id="capitalManagementTotals"></div>
+  </section>
+  <section class="management-area-block"><h3>🌎 Departamental</h3>
+    <div class="tablewrap"><table><thead><tr><th>Descripción</th><th>Cantidad</th><th>Precio unitario</th><th>Precio total</th></tr></thead><tbody id="departamentalManagementTable"></tbody></table></div>
+    <div class="note management-total-note" id="departamentalManagementTotals"></div>
+  </section>
+</div>
+<div class="note" style="margin-top:8px">La cantidad incluye únicamente visitas únicas por Correlativo con Aplica Pago = Sí. Los precios unitarios incluyen IVA.</div>
 </div>
 </div>
 
@@ -186,9 +211,11 @@ function key(h){let n=norm(h); if(n==='gestión'||n==='gestion')return'gestion';
 function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim()); let delim=lines[0].includes('\t')?'\t':','; let hs=lines[0].split(delim).map(x=>x.trim()); headers=hs; rows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim())); populate();render()}
 const STORAGE_KEY='pbs_dashboard_historico_v2';
 function saveStore(){localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,savedAt:new Date().toISOString()}));}
-function loadStore(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(x&&Array.isArray(x.rows)){headers=x.headers||[];rows=x.rows;populate();render();return true}}catch(e){}return false}
+function loadStore(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(x&&Array.isArray(x.rows)){headers=x.headers||[];rows=dedupeRows(x.rows);if(rows.length!==x.rows.length)saveStore();populate();render();return true}}catch(e){}return false}
 function rowSignature(r){return [r.fecha,r.correlativo,r.gestion,r.ejecutivo,r['nombre comercio'],r.departamento,r.municipio,r.zona,r.ruta,r['terminal(1,1)'],r.pago].map(x=>String(x||'').trim().toLowerCase()).join('¦')}
-function mergeRows(newRows,newHeaders){let existing=new Set(rows.map(rowSignature));let added=0;newRows.forEach(r=>{let s=rowSignature(r);if(!existing.has(s)){rows.push(r);existing.add(s);added++}});if(newHeaders?.length)headers=newHeaders;saveStore();populate();render();return added}
+function rowUniqueKey(r){const corr=String(r.correlativo??'').trim().replace(/\s+/g,'');return corr?'corr:'+corr.toLowerCase():'sig:'+rowSignature(r)}
+function dedupeRows(input){const seen=new Set(),out=[];for(const r of input||[]){const corr=String(r.correlativo??'').trim().replace(/\s+/g,'');if(!corr){out.push(r);continue}const k='corr:'+corr.toLowerCase();if(seen.has(k))continue;seen.add(k);out.push(r)}return out}
+function mergeRows(newRows,newHeaders){rows=dedupeRows(rows);let existing=new Set(rows.map(rowUniqueKey));let added=0;newRows.forEach(r=>{let s=rowUniqueKey(r);if(!existing.has(s)){rows.push(r);existing.add(s);added++}});rows=dedupeRows(rows);if(newHeaders?.length)headers=newHeaders;saveStore();populate();render();return added}
 function parseAndMerge(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));let added=mergeRows(newRows,hs);document.getElementById('paste').value='';alert(`Se agregaron ${added} registros nuevos.\nEl histórico total ahora tiene ${rows.length} registros.`)}
 function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));rows=[];mergeRows(newRows,hs)}
 function loadPaste(){let t=document.getElementById('paste').value;if(t.trim())parseAndMerge(t)}
@@ -354,18 +381,59 @@ function renderDaily(a,dmeta,tech){
 function renderDetail(a){let keys=['fecha','gestion','ejecutivo','nombre comercio','departamento','municipio','zona','ruta','razon','area','sub','pago'];let labels=['Fecha','Gestión','Ejecutivo','Comercio','Departamento','Municipio','Zona','Ruta','Razón','AREA PBS','Sub Area','Aplica Pago'];document.getElementById('detailHead').innerHTML='<tr>'+labels.map(x=>`<th>${x}</th>`).join('')+'</tr>';document.getElementById('detailBody').innerHTML=a.slice(0,1000).map(r=>'<tr>'+keys.map(k=>`<td>${esc(r[k])}</td>`).join('')+'</tr>').join('')}
 
 const TARIFF={
-  capital:{'avería':52.50,'averias':52.50,'instalación':64.92,'instalacion':64.92,'mantenimiento':38.25,'mantenimientos':38.25,'migración':49.00,'migracion':49.00,'recuperación':36.06,'recuperacion':36.06,'reprogramación':39.37,'reprogramacion':39.37},
-  departamental:{'avería':61.50,'averias':61.50,'instalación':73.80,'instalacion':73.80,'mantenimiento':42.00,'mantenimientos':42.00,'migración':53.50,'migracion':53.50,'recuperación':41.00,'recuperacion':41.00,'reprogramación':45.10,'reprogramacion':45.10}
+  capital:{averia:52.50,instalacion:64.90,mantenimiento:38.30,migracion:49.00,recuperado:36.10,reprogramacion:39.70},
+  departamental:{averia:61.50,instalacion:73.80,mantenimiento:42.00,migracion:53.50,recuperado:41.00,reprogramacion:45.10}
 };
-function tariffFor(r){
-  if(norm(r.pago)!=='si') return 0;
+const MANAGEMENT_TYPES=[
+  {key:'averia',label:'Averías'},
+  {key:'instalacion',label:'Instalación'},
+  {key:'mantenimiento',label:'Mantenimientos'},
+  {key:'migracion',label:'Migraciones'},
+  {key:'recuperado',label:'Recuperados'},
+  {key:'reprogramacion',label:'Reprogramaciones'}
+];
+function areaType(r){
   const area=norm(r.area);
-  const zone=area.includes('departamental')?'departamental':'capital';
-  return TARIFF[zone][norm(r.motivo)]||0;
+  if(area==='capital')return 'capital';
+  if(area==='departamental')return 'departamental';
+  return '';
+}
+function managementType(r){
+  const m=norm(r.motivo).replace(/\s+/g,' ').trim();
+  if(['averia','averias'].includes(m))return 'averia';
+  if(['instalacion','instalaciones'].includes(m))return 'instalacion';
+  if(['mantenimiento','mantenimientos'].includes(m))return 'mantenimiento';
+  if(['migracion','migraciones'].includes(m))return 'migracion';
+  if(['recuperado','recuperados','recuperacion','recuperaciones'].includes(m))return 'recuperado';
+  if(['reprogramacion','reprogramaciones'].includes(m))return 'reprogramacion';
+  return '';
+}
+function tariffFor(r){
+  if(norm(r.pago)!=='si')return 0;
+  const area=areaType(r),type=managementType(r);
+  if(!area||!type)return 0;
+  return TARIFF[area][type]||0;
 }
 function moneyFor(r){
   const gross=tariffFor(r);
   return {gross,net:gross/1.12,iva:gross-(gross/1.12)};
+}
+function renderManagementArea(a,area){
+  const rowsArea=a.filter(r=>areaType(r)===area);
+  const tbody=document.getElementById(area==='capital'?'capitalManagementTable':'departamentalManagementTable');
+  const totalNote=document.getElementById(area==='capital'?'capitalManagementTotals':'departamentalManagementTotals');
+  if(!tbody||!totalNote)return;
+  let totalGross=0,totalCount=0;
+  const html=MANAGEMENT_TYPES.map(type=>{
+    const unit=TARIFF[area][type.key];
+    const count=rowsArea.filter(r=>managementType(r)===type.key&&norm(r.pago)==='si').length;
+    const gross=count*unit;
+    totalCount+=count;totalGross+=gross;
+    return `<tr><td>${type.label}</td><td>${fmt(count)}</td><td>Q ${unit.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${gross.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;
+  }).join('');
+  tbody.innerHTML=html+`<tr class="total-row"><td>Total</td><td>${fmt(totalCount)}</td><td>—</td><td>Q ${totalGross.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;
+  const net=totalGross/1.12,iva=totalGross-net;
+  totalNote.innerHTML=`<b>Total con IVA:</b> Q ${totalGross.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})} &nbsp;·&nbsp; <b>Sin IVA:</b> Q ${net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})} &nbsp;·&nbsp; <b>IVA incluido:</b> Q ${iva.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 }
 function renderMoney(a){
   const fx=+document.getElementById('fx').value||7.75;
@@ -373,27 +441,25 @@ function renderMoney(a){
   a.forEach(r=>{const m=moneyFor(r);gross+=m.gross;net+=m.net;iva+=m.iva;if(m.gross)paid++});
   const unpaid=a.length-paid;
   document.getElementById('moneyKpis').innerHTML=[
-    ['PRODUCCIÓN CON IVA',`Q ${gross.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,`${paid} visitas facturables`],
+    ['PRODUCCIÓN CON IVA',`Q ${gross.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,`${paid} visitas únicas facturables`],
     ['PRODUCCIÓN SIN IVA',`Q ${net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'Base sin IVA'],
     ['IVA',`Q ${iva.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}`,'12% incluido en precios'],
     ['PRODUCCIÓN USD',`$ ${(gross/fx).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,`Tipo de cambio Q${fx.toFixed(2)}`],
     ['VISITAS CON PAGO',fmt(paid),'Generan producción'],
-    ['NO FACTURABLES',fmt(unpaid),'Aplica Pago distinto de Sí']
+    ['NO FACTURABLES',fmt(unpaid),'Sin pago o sin tarifa/área válida']
   ].map(x=>`<div class="card"><div class="kpi-label">${x[0]}</div><div class="kpi-value">${x[1]}</div><div class="kpi-sub">${x[2]}</div></div>`).join('');
 
   const groups={
-    'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),
-    'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),
-    'Departamental':a.filter(r=>norm(r.area).includes('departamental')||!norm(r.area).includes('capital'))
+    'Capital · Ruta':a.filter(r=>areaType(r)==='capital'&&norm(r.sub).includes('ruta')),
+    'Capital · Proyecto':a.filter(r=>areaType(r)==='capital'&&!norm(r.sub).includes('ruta')),
+    'Departamental':a.filter(r=>areaType(r)==='departamental')
   };
   document.getElementById('moneyAreaTable').innerHTML=Object.entries(groups).map(([name,x])=>{
     let g=0,n=0,c=0;x.forEach(r=>{let m=moneyFor(r);g+=m.gross;n+=m.net;if(m.gross)c++});
     return `<tr><td>${name}</td><td>${fmt(c)}</td><td>Q ${g.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${n.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>$ ${(g/fx).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;
   }).join('');
-
-  const mg={};
-  a.forEach(r=>{let m=moneyFor(r);let k=r.motivo||'(Vacío)';if(!mg[k])mg[k]={n:0,g:0,net:0};if(m.gross){mg[k].n++;mg[k].g+=m.gross;mg[k].net+=m.net}});
-  document.getElementById('moneyGestionTable').innerHTML=Object.entries(mg).sort((a,b)=>b[1].g-a[1].g).map(([k,x])=>`<tr><td>${esc(k)}</td><td>${fmt(x.n)}</td><td>Q ${x.g.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>Q ${x.net.toLocaleString('es-GT',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`).join('');
+  renderManagementArea(a,'capital');
+  renderManagementArea(a,'departamental');
 }
 function updateDataStatus(syncAt){
   const dateEl=document.getElementById('dataLastDate');
@@ -469,7 +535,7 @@ function loadRemote(){
       }).filter(r=>Object.values(r).some(v=>String(v).trim()));
 
       // Solo reemplazamos los datos cuando la respuesta es válida.
-      rows=newRows;
+      rows=dedupeRows(newRows);
       headers=hs;
       saveStore();
       populate();
@@ -477,7 +543,7 @@ function loadRemote(){
       renderCampaign();
       updateDataStatus(data.updatedAt);
       const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
-      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' registros · '+esc(stamp);
+      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp);
       localStorage.setItem('pbs_api_url',url);
     }catch(err){
       status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
