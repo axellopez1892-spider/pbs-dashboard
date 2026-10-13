@@ -229,15 +229,65 @@ const sample=`Fecha\tHora\tCorrelativo\tGestión\tMotivo\tEjecutivo\tCampaña\tN
 01/06/2026\tPrueba\t26055914234230\t79299700\tMantenimiento\tJulio Cesar Chavez de Mata\tPredeterminado\tDOMINOS 14015 BOCA DEL MONTE\t0 AV B 1-31 Z1 BOCA DEL MONTE\tGuatemala\tVilla Canales\tN/A\tC 24\t\tP4241178\t\tCapital\tRuta\tSi`;
 function norm(s){return String(s??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function key(h){let n=norm(h); if(n==='gestión'||n==='gestion')return'gestion'; if(n.includes('ejecutivo'))return'ejecutivo'; if(n.includes('area pbs'))return'area'; if(n==='sub area'||n==='subarea')return'sub'; if(n.includes('aplica pago'))return'pago'; if(n==='fecha')return'fecha'; if(n==='departamento')return'departamento'; if(n==='municipio')return'municipio'; if(n==='zona')return'zona'; if(n==='razón'||n==='razon')return'razon'; if(n==='ruta')return'ruta'; return n}
-function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim()); let delim=lines[0].includes('\t')?'\t':','; let hs=lines[0].split(delim).map(x=>x.trim()); headers=hs; rows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim())); populate();render()}
+function parseDelimited(text){
+  const source=String(text??'').replace(/^\uFEFF/,'');
+  const firstLine=(source.split(/\r?\n/,1)[0]||'');
+  const delim=firstLine.includes('\t')?'\t':',';
+  const records=[];let record=[],field='',quoted=false;
+  for(let i=0;i<source.length;i++){
+    const ch=source[i];
+    if(ch==='"'){
+      if(quoted&&source[i+1]==='"'){field+='"';i++;}
+      else quoted=!quoted;
+    }else if(ch===delim&&!quoted){record.push(field);field='';}
+    else if(ch==='\n'&&!quoted){record.push(field);records.push(record);record=[];field='';}
+    else if(ch==='\r'&&!quoted){/* se ignora CR de CRLF */}
+    else field+=ch;
+  }
+  if(field.length||record.length){record.push(field);records.push(record);}
+  return records.filter(r=>r.some(v=>String(v??'').trim()!==''));
+}
+function rowsFromText(text){
+  const records=parseDelimited(text);if(!records.length)return {headers:[],rows:[]};
+  const hs=records[0].map(x=>String(x??'').trim());
+  const parsed=records.slice(1).map(a=>{const o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o;}).filter(r=>Object.values(r).some(v=>String(v).trim()));
+  return {headers:hs,rows:parsed};
+}
+function parse(text){const parsed=rowsFromText(text);headers=parsed.headers;rows=dedupeRows(parsed.rows);saveStore();populate();render()}
 const STORAGE_KEY='pbs_dashboard_historico_v2';
 function saveStore(){localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,savedAt:new Date().toISOString()}));}
 function loadStore(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(x&&Array.isArray(x.rows)){headers=x.headers||[];rows=dedupeRows(x.rows);if(rows.length!==x.rows.length)saveStore();populate();render();return true}}catch(e){}return false}
 function rowSignature(r){return [r.fecha,r.correlativo,r.gestion,r.ejecutivo,r['nombre comercio'],r.departamento,r.municipio,r.zona,r.ruta,r['terminal(1,1)'],r.pago].map(x=>String(x||'').trim().toLowerCase()).join('¦')}
 function rowUniqueKey(r){const corr=String(r.correlativo??'').trim().replace(/\s+/g,'');return corr?'corr:'+corr.toLowerCase():'sig:'+rowSignature(r)}
-function dedupeRows(input){const seen=new Set(),out=[];for(const r of input||[]){const corr=String(r.correlativo??'').trim().replace(/\s+/g,'');if(!corr){out.push(r);continue}const k='corr:'+corr.toLowerCase();if(seen.has(k))continue;seen.add(k);out.push(r)}return out}
-function mergeRows(newRows,newHeaders){rows=dedupeRows(rows);let existing=new Set(rows.map(rowUniqueKey));let added=0;newRows.forEach(r=>{let s=rowUniqueKey(r);if(!existing.has(s)){rows.push(r);existing.add(s);added++}});rows=dedupeRows(rows);if(newHeaders?.length)headers=newHeaders;saveStore();populate();render();return added}
-function parseAndMerge(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));let added=mergeRows(newRows,hs);document.getElementById('paste').value='';alert(`Se agregaron ${added} registros nuevos.\nEl histórico total ahora tiene ${rows.length} registros.`)}
+function rowCompleteness(r){return ['fecha','hora','motivo','ejecutivo','nombre comercio','departamento','municipio','area','sub','pago'].reduce((n,k)=>n+(String(r[k]??'').trim()?1:0),0)}
+function dedupeRows(input){
+  const byKey=new Map(),order=[];
+  for(const r of input||[]){
+    const k=rowUniqueKey(r);
+    if(!byKey.has(k)){byKey.set(k,r);order.push(k);continue;}
+    const current=byKey.get(k),candidatePaid=norm(r.pago)==='si',currentPaid=norm(current.pago)==='si';
+    // Una gestión con pago debe prevalecer sobre una versión duplicada marcada como No.
+    // Si ambas tienen el mismo estado de pago, preferimos la fila más completa y conservamos la primera en empate.
+    if((candidatePaid&&!currentPaid)||(candidatePaid===currentPaid&&rowCompleteness(r)>rowCompleteness(current)))byKey.set(k,r);
+  }
+  return order.map(k=>byKey.get(k));
+}
+function duplicateAudit(input){
+  const groups=new Map();
+  for(const r of input||[]){const k=rowUniqueKey(r);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(r);}
+  let duplicateRows=0,paymentConflicts=0,categoryConflicts=0,dateConflicts=0,executiveConflicts=0,commerceConflicts=0;
+  for(const group of groups.values())if(group.length>1){
+    duplicateRows+=group.length-1;
+    if(new Set(group.map(r=>norm(r.pago))).size>1)paymentConflicts++;
+    if(new Set(group.map(r=>norm(r.motivo)+'¦'+norm(r.area))).size>1)categoryConflicts++;
+    if(new Set(group.map(r=>norm(r.fecha))).size>1)dateConflicts++;
+    if(new Set(group.map(r=>norm(r.ejecutivo))).size>1)executiveConflicts++;
+    if(new Set(group.map(r=>norm(r['nombre comercio']))).size>1)commerceConflicts++;
+  }
+  return {duplicateRows,paymentConflicts,categoryConflicts,dateConflicts,executiveConflicts,commerceConflicts};
+}
+function mergeRows(newRows,newHeaders){rows=dedupeRows(rows);let existing=new Set(rows.map(rowUniqueKey));let added=0;newRows.forEach(r=>{let s=rowUniqueKey(r);if(!existing.has(s)){rows.push(r);existing.add(s);added++}else if(norm(r.pago)==='si'){const idx=rows.findIndex(x=>rowUniqueKey(x)===s);if(idx>=0&&norm(rows[idx].pago)!=='si')rows[idx]=r;}});rows=dedupeRows(rows);if(newHeaders?.length)headers=newHeaders;saveStore();populate();render();return added}
+function parseAndMerge(text){const parsed=rowsFromText(text);if(!parsed.headers.length){alert('No se encontraron registros válidos en el archivo.');return;}let added=mergeRows(parsed.rows,parsed.headers);document.getElementById('paste').value='';alert(`Se agregaron ${added} registros nuevos.\nEl histórico total ahora tiene ${rows.length} registros.`)}
 function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));rows=[];mergeRows(newRows,hs)}
 function loadPaste(){let t=document.getElementById('paste').value;if(t.trim())parseAndMerge(t)}
 function loadSample(){if(rows.length&& !confirm('Esto agregará los datos de ejemplo al histórico. ¿Continuar?'))return;parseAndMerge(sample)}
@@ -655,6 +705,8 @@ function loadRemote(){
       }).filter(r=>Object.values(r).some(v=>String(v).trim()));
 
       // Solo reemplazamos los datos cuando la respuesta es válida.
+      // Si un Correlativo aparece varias veces, se conserva una sola fila y se prioriza Aplica Pago = Sí.
+      const audit=duplicateAudit(newRows);
       rows=dedupeRows(newRows);
       headers=hs;
       saveStore();
@@ -663,7 +715,15 @@ function loadRemote(){
       renderCampaign();
       updateDataStatus(data.updatedAt);
       const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
-      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp);
+      const duplicateNote=audit.duplicateRows?` · ${fmt(audit.duplicateRows)} filas repetidas consolidadas (prioridad a Pago = Sí)`:'';
+      const conflicts=[];
+      if(audit.paymentConflicts)conflicts.push(`${fmt(audit.paymentConflicts)} con Aplica Pago distinto`);
+      if(audit.dateConflicts)conflicts.push(`${fmt(audit.dateConflicts)} con fecha distinta`);
+      if(audit.executiveConflicts)conflicts.push(`${fmt(audit.executiveConflicts)} con ejecutivo distinto`);
+      if(audit.commerceConflicts)conflicts.push(`${fmt(audit.commerceConflicts)} con comercio distinto`);
+      if(audit.categoryConflicts)conflicts.push(`${fmt(audit.categoryConflicts)} con rubro/área distinto`);
+      const conflictNote=conflicts.length?`<br><span class="bad">⚠ Auditoría de duplicados: ${conflicts.join('; ')}. Revisar antes de presentar a gerencia.</span>`:'';
+      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote+conflictNote;
       localStorage.setItem('pbs_api_url',url);
     }catch(err){
       status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
