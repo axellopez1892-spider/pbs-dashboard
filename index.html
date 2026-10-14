@@ -716,14 +716,8 @@ function loadRemote(){
       updateDataStatus(data.updatedAt);
       const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
       const duplicateNote=audit.duplicateRows?` · ${fmt(audit.duplicateRows)} filas repetidas consolidadas (prioridad a Pago = Sí)`:'';
-      const conflicts=[];
-      if(audit.paymentConflicts)conflicts.push(`${fmt(audit.paymentConflicts)} con Aplica Pago distinto`);
-      if(audit.dateConflicts)conflicts.push(`${fmt(audit.dateConflicts)} con fecha distinta`);
-      if(audit.executiveConflicts)conflicts.push(`${fmt(audit.executiveConflicts)} con ejecutivo distinto`);
-      if(audit.commerceConflicts)conflicts.push(`${fmt(audit.commerceConflicts)} con comercio distinto`);
-      if(audit.categoryConflicts)conflicts.push(`${fmt(audit.categoryConflicts)} con rubro/área distinto`);
-      const conflictNote=conflicts.length?`<br><span class="bad">⚠ Auditoría de duplicados: ${conflicts.join('; ')}. Revisar antes de presentar a gerencia.</span>`:'';
-      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote+conflictNote;
+      // Se conserva la consolidación de duplicados, pero no se muestra el detalle de auditoría en el estado visible.
+      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote;
       localStorage.setItem('pbs_api_url',url);
     }catch(err){
       status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
