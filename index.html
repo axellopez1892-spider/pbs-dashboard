@@ -144,7 +144,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 
 <div class="panel"><h2>🎯 Cumplimiento general</h2><div id="generalGoal"></div></div>
 
-<div class="panel"><h2>📈 Visitas diarias vs meta del período</h2><div class="daily-chart-legend"><span><i style="background:#1769d2"></i>Visitas realizadas</span><span><i class="goal" style="border-top-color:#f2ad24"></i>Meta diaria</span></div><div id="dailyChart" class="chart daily-combo-chart"></div><div class="daily-chart-footnote">La línea azul muestra las visitas realizadas y la amarilla la meta diaria del equipo (técnicos incluidos en los filtros × meta diaria por ejecutivo). Cada punto muestra su cantidad. Sábados y domingos no generan meta. Usa los filtros de fecha para consultar el período deseado.</div></div>
+<div class="panel"><h2>📈 Visitas diarias vs meta del período</h2><div class="daily-chart-legend"><span><i style="background:#1769d2"></i>Visitas realizadas</span><span><i class="goal" style="border-top-color:#f2ad24"></i>Meta diaria</span></div><div id="dailyChart" class="chart daily-combo-chart"></div><div class="daily-chart-footnote">La línea azul muestra las visitas realizadas y la amarilla la meta diaria del equipo (técnicos incluidos en los filtros × meta diaria por ejecutivo). Cada punto muestra su cantidad. En la parte superior se identifica cada fecha con la inicial del día y el número. Sábados y domingos no generan meta. Usa los filtros de fecha para consultar el período deseado.</div></div>
 
 <div class="panel">
 <h2>💰 Producción económica</h2>
@@ -394,10 +394,68 @@ function goalBox(id,forcedTech,meta,vis){let el=document.getElementById(id);if(!
 else if(id==='capitalProyecto'){let a=filtered().filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Capital · Proyecto')}
 else if(id==='departamental'){let a=filtered().filter(r=>!norm(r.area).includes('capital'));let t=uniqFrom(a,'ejecutivo').length;drawGoal(el,t,meta,a.length,'Departamental')}
 else drawGoal(el,forcedTech,meta,vis,'General')}
+function projectionCardHTML(){
+  const selected=filtered();
+  const fromVal=document.getElementById('fFrom').value;
+  const toVal=document.getElementById('fTo').value;
+  const today=new Date(); today.setHours(0,0,0,0);
+  let start, end;
+  if(fromVal) start=new Date(fromVal+'T00:00:00');
+  if(toVal) end=new Date(toVal+'T00:00:00');
+  if(!start && !end){start=new Date(today.getFullYear(),today.getMonth(),1);end=new Date(today.getFullYear(),today.getMonth()+1,0);}
+  else if(start && !end) end=new Date(start.getFullYear(),start.getMonth()+1,0);
+  else if(!start && end) start=new Date(end.getFullYear(),end.getMonth(),1);
+  if(end<start){const tmp=start;start=end;end=tmp;}
+  const keyDate=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const businessDaysBetween=(a,b)=>{let n=0;if(b<a)return 0;for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1)){if(d.getDay()!==0&&d.getDay()!==6)n++;}return n;};
+  const elapsedEnd=new Date(Math.min(end.getTime(),today.getTime()));
+  const totalWorkdays=businessDaysBetween(start,end);
+  const elapsedWorkdays=businessDaysBetween(start,elapsedEnd);
+  const inPeriod=selected.filter(r=>{const d=dateVal(r.fecha);return d&&d>=start&&d<=end;});
+  const actualToDate=inPeriod.filter(r=>{const d=dateVal(r.fecha);return d&&d<=elapsedEnd;}).length;
+  // Meta mensual prorrateada por días laborales dentro del período seleccionado.
+  let monthlyWorkdays=0, months= new Set();
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    months.add(`${d.getFullYear()}-${d.getMonth()}`);
+    if(d.getDay()!==0&&d.getDay()!==6) monthlyWorkdays++;
+  }
+  let denominator=0;
+  months.forEach(m=>{const [yy,mm]=m.split('-').map(Number);denominator+=businessDaysBetween(new Date(yy,mm,1),new Date(yy,mm+1,0));});
+  const monthlyTarget=Number(document.getElementById('metaMensual').value)||375;
+  const technicians=uniqFrom(inPeriod,'ejecutivo').length || uniqFrom(selected,'ejecutivo').length;
+  const target=denominator?technicians*monthlyTarget*(monthlyWorkdays/denominator):0;
+  const projected=elapsedWorkdays>0?actualToDate/elapsedWorkdays*totalWorkdays:0;
+  const percent=target?projected/target*100:0;
+  const max=Math.max(target,projected,actualToDate,1);
+  const bars=[
+    {label:'Realizado al corte',value:actualToDate,color:'#1769d2'},
+    {label:'Proyección al cierre',value:projected,color:'#16a34a'},
+    {label:'Meta del período',value:target,color:'#f2ad24'}
+  ];
+  const barSvg=bars.map((b,i)=>{const y=35+i*42,w=220*b.value/max;return `<text x="0" y="${y+11}" font-size="10" fill="#52627a">${b.label}</text><rect x="0" y="${y+16}" width="220" height="12" rx="5" fill="#edf1f6"/><rect x="0" y="${y+16}" width="${Math.max(0,w)}" height="12" rx="5" fill="${b.color}"/><text x="228" y="${y+26}" font-size="11" font-weight="700" fill="#172033">${fmt(b.value)}</text>`;}).join('');
+  const result=elapsedWorkdays===0?'Aún no hay días laborales transcurridos para proyectar.':(percent>=100?'Al ritmo actual, sí se alcanzaría la meta.':'Al ritmo actual, no se alcanzaría la meta.');
+  const color=elapsedWorkdays===0?'#687386':(percent>=100?'#079455':'#d92d20');
+  const periodLabel=`${start.toLocaleDateString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric'})} – ${end.toLocaleDateString('es-GT',{day:'2-digit',month:'2-digit',year:'numeric'})}`;
+  return `<div class="compliance-chart-card"><div class="compliance-chart-title">📈 Proyección al cierre del período</div><div class="compliance-chart-subtitle">Estimación según el ritmo promedio de visitas en días laborales</div><svg class="compliance-bar-svg" viewBox="0 0 300 180" role="img" aria-label="Gráfica de proyección de visitas frente a la meta">${barSvg}</svg><div style="border-radius:9px;background:#f8fafc;border:1px solid #e5eaf1;padding:10px;margin-top:5px"><div style="font-size:12px;font-weight:800;color:${color}">${result}</div><div style="font-size:11px;color:#52627a;margin-top:5px">Proyección: <b>${fmt(projected)}</b> · Meta estimada: <b>${fmt(target)}</b> · Cumplimiento proyectado: <b>${pct(percent)}</b></div><div style="font-size:10px;color:#687386;margin-top:4px">Período: ${periodLabel} · Días laborales transcurridos: ${fmt(elapsedWorkdays)} de ${fmt(totalWorkdays)}</div></div></div>`;
+}
 function drawGoal(el,t,meta,vis,title){
+
   const goal=t*meta,p=goal?vis/goal*100:0,diff=vis-goal,pctDone=Math.max(0,Math.min(100,p)),pending=Math.max(0,goal-vis),pendingPct=goal?pending/goal*100:0;
   const maxBar=Math.max(goal,vis,1),goalH=120*goal/maxBar,visH=120*vis/maxBar;
   const circumference=2*Math.PI*48,doneDash=circumference*pctDone/100;
+  const rightChart=title==='General'?projectionCardHTML():`<div class="compliance-chart-card">
+      <div class="compliance-chart-title">🎯 Composición del cumplimiento</div>
+      <div class="compliance-chart-subtitle">Realizado y pendiente para alcanzar la meta</div>
+      <div class="compliance-donut-layout">
+        <svg class="compliance-donut-svg" viewBox="0 0 150 150" role="img" aria-label="Gráfica de anillo del cumplimiento general">
+          <circle cx="75" cy="75" r="48" fill="none" stroke="#e5eaf1" stroke-width="18"/>
+          <circle cx="75" cy="75" r="48" fill="none" stroke="#1769d2" stroke-width="18" stroke-dasharray="${doneDash} ${circumference-doneDash}" transform="rotate(-90 75 75)"/>
+          <text x="75" y="72" text-anchor="middle" fill="#172033" font-size="17" font-weight="800">${pct(p)}</text><text x="75" y="89" text-anchor="middle" fill="#687386" font-size="10">Realizado</text>
+        </svg>
+        <div class="compliance-donut-key"><span>🔵 Realizado</span><b>${fmt(vis)}</b><span>⚪ Pendiente</span><b>${fmt(pending)}</b><span>${pct(pendingPct)} pendiente</span></div>
+      </div>
+      <div class="campaign-status" style="margin-top:6px">Total de referencia: <b>${fmt(goal)} visitas</b></div>
+    </div>`;
   el.innerHTML=`
     <div class="metric">
       <div class="metricbox"><span class="kpi-label">Técnicos</span><b>${fmt(t)}</b></div>
@@ -421,19 +479,7 @@ function drawGoal(el,t,meta,vis,title){
         </svg>
         <div class="compliance-legend"><span><i style="background:#f2ad24"></i>Meta</span><span><i style="background:#1769d2"></i>Realizado</span></div>
       </div>
-      <div class="compliance-chart-card">
-        <div class="compliance-chart-title">🎯 Composición del cumplimiento</div>
-        <div class="compliance-chart-subtitle">Realizado y pendiente para alcanzar la meta</div>
-        <div class="compliance-donut-layout">
-          <svg class="compliance-donut-svg" viewBox="0 0 150 150" role="img" aria-label="Gráfica de anillo del cumplimiento general">
-            <circle cx="75" cy="75" r="48" fill="none" stroke="#e5eaf1" stroke-width="18"/>
-            <circle cx="75" cy="75" r="48" fill="none" stroke="#1769d2" stroke-width="18" stroke-dasharray="${doneDash} ${circumference-doneDash}" transform="rotate(-90 75 75)"/>
-            <text x="75" y="72" text-anchor="middle" fill="#172033" font-size="17" font-weight="800">${pct(p)}</text><text x="75" y="89" text-anchor="middle" fill="#687386" font-size="10">Realizado</text>
-          </svg>
-          <div class="compliance-donut-key"><span>🔵 Realizado</span><b>${fmt(vis)}</b><span>⚪ Pendiente</span><b>${fmt(pending)}</b><span>${pct(pendingPct)} pendiente</span></div>
-        </div>
-        <div class="campaign-status" style="margin-top:6px">Total de referencia: <b>${fmt(goal)} visitas</b></div>
-      </div>
+      ${rightChart}
     </div>`;
 }
 function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),'Departamental':a.filter(r=>!norm(r.area).includes('capital'))};let h='<table><thead><tr><th>Operación</th><th>Técnicos</th><th>Visitas</th><th>Meta mensual</th><th>Cumplimiento</th></tr></thead><tbody>';Object.entries(groups).forEach(([n,x])=>{let t=uniqFrom(x,'ejecutivo').length,g=t*meta,p=g?x.length/g*100:0;h+=`<tr><td>${n}</td><td>${t}</td><td>${fmt(x.length)}</td><td>${fmt(g)}</td><td>${badge(p)}</td></tr>`});h+='</tbody></table>';document.getElementById('staff').innerHTML=h}
@@ -503,7 +549,10 @@ function renderDaily(a,dmeta,tech){
   data.forEach((x,i)=>{
     const cx=pointX(i);
     svg+=`<line x1="${cx}" y1="${top}" x2="${cx}" y2="${top+plotH}" stroke="#edf1f6" stroke-width="1"/>`;
-    const label=days>45?`${x.day}/${x.d.getMonth()+1}`:`${x.day}/${x.d.getMonth()+1}`;
+    const weekdayInitial=['D','L','M','X','J','V','S'][x.d.getDay()];
+    const topLabel=`${weekdayInitial} ${x.day}`;
+    svg+=`<text x="${cx}" y="19" text-anchor="middle" fill="#172033" font-size="${days>25?9:11}" font-weight="700"><title>${x.d.toLocaleDateString('es-GT',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</title>${topLabel}</text>`;
+    const label=`${x.day}/${x.d.getMonth()+1}`;
     svg+=`<text x="${cx}" y="${height-17}" text-anchor="middle" fill="#52627a" font-size="${days>25?9:11}">${label}</text>`;
   });
   const actualPts=data.map((x,i)=>({x:pointX(i),y:y(x.actual),v:x.actual,k:x.k,weekend:x.weekend}));
