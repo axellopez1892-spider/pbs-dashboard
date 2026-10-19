@@ -255,7 +255,21 @@ function rowsFromText(text){
 }
 function parse(text){const parsed=rowsFromText(text);headers=parsed.headers;rows=dedupeRows(parsed.rows);saveStore();populate();render()}
 const STORAGE_KEY='pbs_dashboard_historico_v2';
-function saveStore(){localStorage.setItem(STORAGE_KEY,JSON.stringify({headers,rows,savedAt:new Date().toISOString()}));}
+let storageWarning='';
+function saveStore(){
+  try{
+    const payload=JSON.stringify({headers,rows,savedAt:new Date().toISOString()});
+    localStorage.setItem(STORAGE_KEY,payload);
+    storageWarning='';
+    return true;
+  }catch(e){
+    // No interrumpir la actualización visual si el navegador se queda sin cuota.
+    // No borrar automáticamente el histórico anterior: podría contener datos útiles.
+    storageWarning='Los datos se cargaron en esta sesión, pero el navegador no pudo guardar el histórico local por falta de espacio. Exporta un respaldo y luego podremos optimizar el almacenamiento.';
+    console.warn('No se pudo guardar el histórico local:',e);
+    return false;
+  }
+}
 function loadStore(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(x&&Array.isArray(x.rows)){headers=x.headers||[];rows=dedupeRows(x.rows);if(rows.length!==x.rows.length)saveStore();populate();render();return true}}catch(e){}return false}
 function rowSignature(r){return [r.fecha,r.correlativo,r.gestion,r.ejecutivo,r['nombre comercio'],r.departamento,r.municipio,r.zona,r.ruta,r['terminal(1,1)'],r.pago].map(x=>String(x||'').trim().toLowerCase()).join('¦')}
 function rowUniqueKey(r){const corr=String(r.correlativo??'').trim().replace(/\s+/g,'');return corr?'corr:'+corr.toLowerCase():'sig:'+rowSignature(r)}
@@ -758,7 +772,7 @@ function loadRemote(){
       const audit=duplicateAudit(newRows);
       rows=dedupeRows(newRows);
       headers=hs;
-      saveStore();
+      const storedLocally=saveStore();
       populate();
       render();
       renderCampaign();
@@ -766,8 +780,10 @@ function loadRemote(){
       const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
       const duplicateNote=audit.duplicateRows?` · ${fmt(audit.duplicateRows)} filas repetidas consolidadas (prioridad a Pago = Sí)`:'';
       // Se conserva la consolidación de duplicados, pero no se muestra el detalle de auditoría en el estado visible.
-      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote;
-      localStorage.setItem('pbs_api_url',url);
+      status.innerHTML=storedLocally
+        ? '<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote
+        : '<span class="good">✓ Datos actualizados en pantalla.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+'<br><span class="bad">⚠ No se pudo guardar el histórico en este navegador por falta de espacio. Los datos actuales seguirán visibles mientras esta pestaña permanezca abierta.</span>';
+      try{localStorage.setItem('pbs_api_url',url);}catch(e){console.warn('No se pudo guardar la URL de Apps Script:',e);}
     }catch(err){
       status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
     }
