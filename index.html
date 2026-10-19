@@ -767,7 +767,7 @@ function loadRemote(){
     cleanup();
     status.innerHTML='<span class="bad">'+msg+'</span><br><span class="note">Si Google Apps Script responde correctamente, revisaremos únicamente la publicación del dashboard.</span>';
   };
-  const timer=setTimeout(()=>fail('No se pudieron cargar los datos desde Google Sheets.'),20000);
+  const timer=setTimeout(()=>fail('Google Sheets tardó más de 60 segundos en responder. Tus datos anteriores no se borraron; vuelve a intentar en unos segundos.'),60000);
 
   window[callbackName]=function(data){
     if(finished)return;
