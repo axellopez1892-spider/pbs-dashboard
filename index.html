@@ -250,27 +250,41 @@ function parseDelimited(text){
 function rowsFromText(text){
   const records=parseDelimited(text);if(!records.length)return {headers:[],rows:[]};
   const hs=records[0].map(x=>String(x??'').trim());
-  const parsed=records.slice(1).map(a=>{const o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o;}).filter(r=>Object.values(r).some(v=>String(v).trim()));
+  const parsed=records.slice(1).map(a=>{const o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');return o;}).filter(r=>Object.values(r).some(v=>String(v).trim()));
   return {headers:hs,rows:parsed};
 }
 function parse(text){const parsed=rowsFromText(text);headers=parsed.headers;rows=dedupeRows(parsed.rows);saveStore();populate();render()}
 const STORAGE_KEY='pbs_dashboard_historico_v2';
-let storageWarning='';
-function saveStore(){
+// La fuente oficial del histórico es Google Sheets. No duplicamos miles de filas
+// en localStorage: el dashboard las mantiene en memoria y las vuelve a consultar
+// al abrirse. Esto evita alcanzar la cuota del navegador al crecer el volumen.
+function saveStore(){ return true; }
+function loadStore(){ return false; }
+
+// Elimina el caché histórico antiguo únicamente si se comprobó que todas sus
+// claves también están en la respuesta actual de Google Sheets. Si hay filas
+// locales que no aparecen en la hoja, lo conserva para evitar pérdida de datos.
+function releaseLegacyStoreIfCovered(remoteRows){
   try{
-    const payload=JSON.stringify({headers,rows,savedAt:new Date().toISOString()});
-    localStorage.setItem(STORAGE_KEY,payload);
-    storageWarning='';
-    return true;
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw) return {removed:false,preserved:false};
+    const cached=JSON.parse(raw);
+    if(!cached || !Array.isArray(cached.rows)){
+      localStorage.removeItem(STORAGE_KEY);
+      return {removed:true,preserved:false};
+    }
+    const remoteKeys=new Set(dedupeRows(remoteRows).map(rowUniqueKey));
+    const missing=cached.rows.filter(r=>!remoteKeys.has(rowUniqueKey(r))).length;
+    if(missing===0){
+      localStorage.removeItem(STORAGE_KEY);
+      return {removed:true,preserved:false};
+    }
+    return {removed:false,preserved:true,missing};
   }catch(e){
-    // No interrumpir la actualización visual si el navegador se queda sin cuota.
-    // No borrar automáticamente el histórico anterior: podría contener datos útiles.
-    storageWarning='Los datos se cargaron en esta sesión, pero el navegador no pudo guardar el histórico local por falta de espacio. Exporta un respaldo y luego podremos optimizar el almacenamiento.';
-    console.warn('No se pudo guardar el histórico local:',e);
-    return false;
+    console.warn('No se pudo revisar el caché histórico antiguo:',e);
+    return {removed:false,preserved:false,error:true};
   }
 }
-function loadStore(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');if(x&&Array.isArray(x.rows)){headers=x.headers||[];rows=dedupeRows(x.rows);if(rows.length!==x.rows.length)saveStore();populate();render();return true}}catch(e){}return false}
 function rowSignature(r){return [r.fecha,r.correlativo,r.gestion,r.ejecutivo,r['nombre comercio'],r.departamento,r.municipio,r.zona,r.ruta,r['terminal(1,1)'],r.pago].map(x=>String(x||'').trim().toLowerCase()).join('¦')}
 function rowUniqueKey(r){const corr=String(r.correlativo??'').trim().replace(/\s+/g,'');return corr?'corr:'+corr.toLowerCase():'sig:'+rowSignature(r)}
 function rowCompleteness(r){return ['fecha','hora','motivo','ejecutivo','nombre comercio','departamento','municipio','area','sub','pago'].reduce((n,k)=>n+(String(r[k]??'').trim()?1:0),0)}
@@ -302,10 +316,10 @@ function duplicateAudit(input){
 }
 function mergeRows(newRows,newHeaders){rows=dedupeRows(rows);let existing=new Set(rows.map(rowUniqueKey));let added=0;newRows.forEach(r=>{let s=rowUniqueKey(r);if(!existing.has(s)){rows.push(r);existing.add(s);added++}else if(norm(r.pago)==='si'){const idx=rows.findIndex(x=>rowUniqueKey(x)===s);if(idx>=0&&norm(rows[idx].pago)!=='si')rows[idx]=r;}});rows=dedupeRows(rows);if(newHeaders?.length)headers=newHeaders;saveStore();populate();render();return added}
 function parseAndMerge(text){const parsed=rowsFromText(text);if(!parsed.headers.length){alert('No se encontraron registros válidos en el archivo.');return;}let added=mergeRows(parsed.rows,parsed.headers);document.getElementById('paste').value='';alert(`Se agregaron ${added} registros nuevos.\nEl histórico total ahora tiene ${rows.length} registros.`)}
-function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');o._raw=a;return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));rows=[];mergeRows(newRows,hs)}
+function parse(text){let lines=text.replace(/\r/g,'').split('\n').filter(x=>x.trim());let delim=lines[0].includes('\t')?'\t':',';let hs=lines[0].split(delim).map(x=>x.trim());let newRows=lines.slice(1).map(line=>{let a=line.split(delim);let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');return o}).filter(r=>Object.values(r).some(v=>String(v).trim()));rows=[];mergeRows(newRows,hs)}
 function loadPaste(){let t=document.getElementById('paste').value;if(t.trim())parseAndMerge(t)}
 function loadSample(){if(rows.length&& !confirm('Esto agregará los datos de ejemplo al histórico. ¿Continuar?'))return;parseAndMerge(sample)}
-function clearData(){if(confirm('¿Borrar TODO el histórico guardado en este navegador? Esta acción no se puede deshacer.')){rows=[];headers=[];localStorage.removeItem(STORAGE_KEY);populate();render();}}
+function clearData(){if(confirm('¿Borrar TODO el histórico guardado en este navegador? Esta acción no se puede deshacer.')){rows=[];headers=[];try{localStorage.removeItem(STORAGE_KEY);}catch(e){}populate();render();}}
 function exportJSON(){let blob=new Blob([JSON.stringify({headers,rows,savedAt:new Date().toISOString()},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='PBS_Historico.json';a.click();URL.revokeObjectURL(a.href)}
 function importJSON(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.rows))throw Error();let added=mergeRows(x.rows,x.headers||[]);alert(`Respaldo cargado. Se agregaron ${added} registros nuevos.`)}catch(err){alert('El archivo de respaldo no es válido.')}};r.readAsText(f)}
 function loadCSV(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>parseAndMerge(r.result);r.readAsText(f,'UTF-8')}
@@ -328,7 +342,7 @@ function populateCampaigns(){
   const saved=Object.keys(campaignStore());
   const all=[...new Set([...names,...saved])].sort((a,b)=>a.localeCompare(b,'es'));
   sel.innerHTML='<option value="">Selecciona una campaña</option>'+all.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('')+'<option value="__new__">＋ Nueva campaña</option>';
-  const remembered=localStorage.getItem('pbs_campaign_selected')||'';
+  let remembered='';try{remembered=localStorage.getItem('pbs_campaign_selected')||'';}catch(e){}
   if(current&&all.includes(current)) sel.value=current;
   else if(remembered&&all.includes(remembered)) {
     sel.value=remembered;
@@ -338,9 +352,9 @@ function populateCampaigns(){
 function loadCampaignConfig(){
   const sel=document.getElementById('campaignSelect'); if(!sel)return;
   let name=sel.value;
-  if(name==='__new__'){localStorage.removeItem('pbs_campaign_selected');document.getElementById('campaignName').value='';document.getElementById('campaignTarget').value='0';document.getElementById('campaignDone').value='0';document.getElementById('campaignDeadline').value='';document.getElementById('campaignDaily').value='0';renderCampaign();return;}
+  if(name==='__new__'){try{localStorage.removeItem('pbs_campaign_selected');}catch(e){}document.getElementById('campaignName').value='';document.getElementById('campaignTarget').value='0';document.getElementById('campaignDone').value='0';document.getElementById('campaignDeadline').value='';document.getElementById('campaignDaily').value='0';renderCampaign();return;}
   if(!name)return;
-  localStorage.setItem('pbs_campaign_selected',name);
+  try{localStorage.setItem('pbs_campaign_selected',name);}catch(e){}
   const cfg=campaignStore()[name]||{};
   document.getElementById('campaignName').value=name;
   document.getElementById('campaignTarget').value=cfg.target??0;
@@ -354,10 +368,14 @@ function saveCampaignConfig(){
   if(!name){alert('Escribe el nombre de la campaña.');return;}
   const store=campaignStore();
   store[name]={target:+document.getElementById('campaignTarget').value||0,done:+document.getElementById('campaignDone').value||0,deadline:document.getElementById('campaignDeadline').value||'',daily:+document.getElementById('campaignDaily').value||0};
-  localStorage.setItem('pbs_campaigns',JSON.stringify(store));
-  localStorage.setItem('pbs_campaign_selected',name);
+  try{
+    localStorage.setItem('pbs_campaigns',JSON.stringify(store));
+    localStorage.setItem('pbs_campaign_selected',name);
+    document.getElementById('campaignStatus').innerHTML='<span class="good">✓ Campaña guardada. Se conservará al volver a abrir esta misma página en este navegador.</span>';
+  }catch(e){
+    document.getElementById('campaignStatus').innerHTML='<span class="warn">⚠ La campaña se usa en esta sesión, pero el navegador no pudo guardar su configuración local.</span>';
+  }
   populateCampaigns();document.getElementById('campaignSelect').value=name;loadCampaignConfig();renderCampaign();
-  document.getElementById('campaignStatus').innerHTML='<span class="good">✓ Campaña guardada. Se conservará al volver a abrir esta misma página en este navegador.</span>';
 }
 function resetCampaignConfig(){
   document.getElementById('campaignSelect').value='';document.getElementById('campaignName').value='';document.getElementById('campaignTarget').value='2661';document.getElementById('campaignDone').value='0';document.getElementById('campaignDeadline').value='2026-11-10';document.getElementById('campaignDaily').value='0';renderCampaign();
@@ -763,7 +781,6 @@ function loadRemote(){
       const newRows=data.rows.map(arr=>{
         let o={};
         hs.forEach((h,i)=>o[key(h)]=arr[i]??'');
-        o._raw=arr;
         return o;
       }).filter(r=>Object.values(r).some(v=>String(v).trim()));
 
@@ -772,17 +789,23 @@ function loadRemote(){
       const audit=duplicateAudit(newRows);
       rows=dedupeRows(newRows);
       headers=hs;
-      const storedLocally=saveStore();
+      // Solo se libera el caché antiguo si la hoja contiene todos sus registros.
+      const legacyCache=releaseLegacyStoreIfCovered(rows);
       populate();
       render();
       renderCampaign();
       updateDataStatus(data.updatedAt);
       const stamp=data.updatedAt?new Date(data.updatedAt).toLocaleString('es-GT'):new Date().toLocaleString('es-GT');
       const duplicateNote=audit.duplicateRows?` · ${fmt(audit.duplicateRows)} filas repetidas consolidadas (prioridad a Pago = Sí)`:'';
-      // Se conserva la consolidación de duplicados, pero no se muestra el detalle de auditoría en el estado visible.
-      status.innerHTML=storedLocally
-        ? '<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote
-        : '<span class="good">✓ Datos actualizados en pantalla.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+'<br><span class="bad">⚠ No se pudo guardar el histórico en este navegador por falta de espacio. Los datos actuales seguirán visibles mientras esta pestaña permanezca abierta.</span>';
+      let cacheNote='';
+      if(legacyCache.preserved){
+        cacheNote='<br><span class="warn">⚠ Se conservó el histórico local antiguo porque contiene '+fmt(legacyCache.missing)+' registros que no aparecen en Google Sheets. No se borró para evitar pérdida de datos.</span>';
+      }else if(legacyCache.error){
+        cacheNote='<br><span class="warn">⚠ No se pudo revisar el caché local antiguo; el dashboard funciona sin depender de él.</span>';
+      }else if(legacyCache.removed){
+        cacheNote='<br><span class="note">Se liberó el caché antiguo del navegador porque sus registros están cubiertos por Google Sheets.</span>';
+      }
+      status.innerHTML='<span class="good">✓ Datos actualizados correctamente.</span> '+fmt(rows.length)+' visitas únicas por Correlativo · '+esc(stamp)+duplicateNote+cacheNote;
       try{localStorage.setItem('pbs_api_url',url);}catch(e){console.warn('No se pudo guardar la URL de Apps Script:',e);}
     }catch(err){
       status.innerHTML='<span class="bad">Error procesando los datos: '+esc(err.message||err)+'</span>';
@@ -793,7 +816,7 @@ function loadRemote(){
   document.head.appendChild(script);
 }
 
-function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
+function restoreApiUrl(){try{const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}catch(e){/* La URL predeterminada del HTML sigue disponible. */}}
 
 function resetFilters(){['fFrom','fTo'].forEach(x=>document.getElementById(x).value='');['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].forEach(x=>document.getElementById(x).value='');render()}
 restoreApiUrl(); if(!loadStore()){ rows=[]; headers=[]; populate(); render(); } updateDataStatus(); setTimeout(()=>loadRemote(),300); setTimeout(()=>renderCampaign(),50); ['campaignTarget','campaignDone','campaignDeadline','campaignDaily','campaignName'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('input',renderCampaign)});
