@@ -227,13 +227,13 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 .staff-scroll{overflow:auto}.staff-table{width:100%;border-collapse:collapse;font-size:12px}.staff-table th,.staff-table td{padding:9px 8px;border-bottom:1px solid #e5eaf1;text-align:left;white-space:nowrap}.staff-table th{font-size:10px;text-transform:uppercase;color:#687386}.staff-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#687386}.staff-legend span{display:inline-flex;align-items:center;gap:5px}.staff-dot{width:9px;height:9px;border-radius:50%;display:inline-block}.staff-chart{display:block;width:100%;min-width:640px;height:auto}.staff-chart-wrap{overflow-x:auto}.staff-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 @media(max-width:850px){#staffDashboard{padding:10px}.staff-filters{grid-template-columns:repeat(2,minmax(0,1fr))}.staff-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.staff-filters{grid-template-columns:1fr}.staff-kpis{grid-template-columns:1fr 1fr}}
-#staffAccessModal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:18px}
-#staffAccessModal .access-card{width:min(420px,100%);background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:24px;box-shadow:0 22px 60px rgba(15,23,42,.25)}
-#staffAccessModal h2{margin:0 0 8px;color:#142b4a;font-size:21px}
-#staffAccessModal p{margin:0 0 16px;color:#5d6b82;font-size:13px;line-height:1.5}
-#staffAccessModal input{width:100%;box-sizing:border-box;margin:6px 0 12px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
-#staffAccessModal .access-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
-#staffAccessError{display:none;color:#b42318;font-size:12px;margin:-4px 0 12px}
+#staffAccessModal,#campaignAccessModal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:18px}
+#staffAccessModal .access-card,#campaignAccessModal .access-card{width:min(420px,100%);background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:24px;box-shadow:0 22px 60px rgba(15,23,42,.25)}
+#staffAccessModal h2,#campaignAccessModal h2{margin:0 0 8px;color:#142b4a;font-size:21px}
+#staffAccessModal p,#campaignAccessModal p{margin:0 0 16px;color:#5d6b82;font-size:13px;line-height:1.5}
+#staffAccessModal input,#campaignAccessModal input{width:100%;box-sizing:border-box;margin:6px 0 12px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
+#staffAccessModal .access-actions,#campaignAccessModal .access-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+#staffAccessError,#campaignAccessError{display:none;color:#b42318;font-size:12px;margin:-4px 0 12px}
 </style>
 <div id="staffAccessModal" role="dialog" aria-modal="true" aria-labelledby="staffAccessTitle">
   <form class="access-card" id="staffAccessForm">
@@ -243,6 +243,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
     <input id="staffAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" />
     <div id="staffAccessError" role="alert">Clave incorrecta. Permaneces en el dashboard general.</div>
     <div class="access-actions"><button class="btn secondary" type="button" onclick="cancelStaffAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
+  </form>
+</div>
+<div id="campaignAccessModal" role="dialog" aria-modal="true" aria-labelledby="campaignAccessTitle">
+  <form class="access-card" id="campaignAccessForm">
+    <h2 id="campaignAccessTitle">🔒 Acceso a Control de campañas</h2>
+    <p>Ingresa la clave autorizada para abrir el módulo de campañas.</p>
+    <label for="campaignAccessPassword">Contraseña</label>
+    <input id="campaignAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" />
+    <div id="campaignAccessError" role="alert">Clave incorrecta. Permaneces en el dashboard general.</div>
+    <div class="access-actions"><button class="btn secondary" type="button" onclick="cancelCampaignAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
   </form>
 </div>
 <div id="staffDashboard" aria-label="Control semanal de horarios">
@@ -369,12 +379,36 @@ function fmt(n){return Number(n||0).toLocaleString('es-GT',{maximumFractionDigit
 function pct(x){return Number.isFinite(x)?x.toFixed(2)+'%':'0.00%'}
 function badge(p){return `<span class="badge ${p>=100?'bgood':p>=90?'bwarn':'bbad'}">${pct(p)}</span>`}
 function esc(x){return String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+let campaignAccessGranted=false;
 function openCampaignControl(){
+  if(campaignAccessGranted){showCampaignControl();return;}
+  const modal=document.getElementById('campaignAccessModal');
+  document.getElementById('campaignAccessPassword').value='';
+  document.getElementById('campaignAccessError').style.display='none';
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('campaignAccessPassword').focus(),30);
+}
+function cancelCampaignAccess(){
+  document.getElementById('campaignAccessModal').style.display='none';
+  document.getElementById('campaignAccessPassword').value='';
+  document.getElementById('campaignAccessError').style.display='none';
+}
+document.getElementById('campaignAccessForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  const entered=document.getElementById('campaignAccessPassword').value;
+  if(entered==='L1A2'){
+    campaignAccessGranted=true;
+    document.getElementById('campaignAccessModal').style.display='none';
+    showCampaignControl();
+  }else{
+    document.getElementById('campaignAccessError').style.display='block';
+    document.getElementById('campaignAccessPassword').value='';
+    document.getElementById('campaignAccessPassword').focus();
+  }
+});
+function showCampaignControl(){
   const panel=document.getElementById('campaignPanel');
   if(!panel){alert('No se encontró la sección Control de campañas.');return;}
-  const entered=window.prompt('🔒 Control de campañas\nIngresa la contraseña para continuar:');
-  if(entered===null)return;
-  if(entered!=='L1A2'){alert('Contraseña incorrecta. Permaneces en el dashboard general.');return;}
   panel.style.display='block';
   panel.scrollIntoView({behavior:'smooth',block:'start'});
 }
