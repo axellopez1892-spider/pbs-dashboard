@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PBS · Control de horarios</title>
+<style>
+:root{--bg:#f3f6fb;--card:#fff;--text:#172033;--muted:#65718a;--line:#e1e7f0;--blue:#245bd6;--green:#198754;--yellow:#d99a19;--red:#d64545;--gray:#8993a5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 Arial,Helvetica,sans-serif}
+.wrap{max-width:1400px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.eyebrow{font-size:11px;letter-spacing:1.2px;color:var(--muted);font-weight:bold}.title{font-size:28px;margin:4px 0}.muted{color:var(--muted)}.pill{background:#e9eef8;color:#41516e;border-radius:999px;padding:6px 10px;font-size:11px;font-weight:bold}
+.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;margin-bottom:16px;box-shadow:0 4px 18px #1c31500a}
+.btn{border:0;border-radius:9px;padding:10px 14px;font-weight:bold;cursor:pointer;background:#e9eef8;color:#22324d}.btn.primary{background:var(--blue);color:white}.btn:disabled{opacity:.45;cursor:not-allowed}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field label{font-size:12px;color:var(--muted);font-weight:bold}
+select,input{width:100%;min-width:0;border:1px solid #d6deeb;border-radius:8px;padding:10px;background:white;color:var(--text)}
+.actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.kpi-label{font-size:12px;color:var(--muted)}.kpi-value{font-size:27px;font-weight:800;margin:6px 0 2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.chart-scroll{overflow-x:auto}svg{display:block;width:100%;min-width:620px;height:auto}table{border-collapse:collapse;width:100%;white-space:nowrap}th,td{padding:10px 9px;border-bottom:1px solid var(--line);text-align:left}th{font-size:10px;letter-spacing:.5px;color:var(--muted);text-transform:uppercase}tfoot th{background:#f7f9fc}
+.badge{display:inline-block;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:bold}.green{background:#d9f4e7;color:#176b4c}.yellow{background:#fff0c9;color:#80530a}.red{background:#fde2e2;color:#a42e2e}.gray{background:#edf0f5;color:#5d6677}
+.status{font-size:12px;padding-top:10px}.status.ok{color:var(--green)}.status.warn{color:#9b6b0b}.status.error{color:var(--red)}
+.note{font-size:12px;color:var(--muted);line-height:1.5}.section-title{font-size:17px;font-weight:800;margin:0 0 4px}
+@media(max-width:900px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}
+@media(max-width:520px){.wrap{padding:12px}.filters{grid-template-columns:1fr}.title{font-size:23px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div><div class="eyebrow">PBS GUATEMALA · CONTROL DE PERSONAL</div><h1 class="title">Control de horarios</h1><div class="muted">Progreso semanal de entradas, últimas gestiones y balance de tiempo observado.</div></div>
+    <div class="actions"><span class="pill">Jornada: 08:20–18:00 · Lunes a viernes</span><button class="btn" id="reload">↻ Actualizar datos</button></div>
+  </header>
+
+  <section class="card">
+    <h2 class="section-title">Filtros de consulta</h2>
+    <div class="filters" style="margin-top:12px">
+      <div class="field"><label for="tech">Técnico</label><select id="tech"><option value="Todos">Todos los técnicos</option></select></div>
+      <div class="field"><label for="dateMode">Filtrar fecha por</label><select id="dateMode"><option value="Semana">Semana</option><option value="Mes">Mes</option><option value="Día">Día</option></select></div>
+      <div class="field" id="dateField"><label for="week" id="dateLabel">Elige un día de lunes a viernes</label><input id="week" type="date"></div>
+      <div class="field"><label for="reason">Motivo</label><select id="reason"><option value="Todos">Todos los motivos</option></select></div>
+      <div class="actions"><button class="btn primary" id="apply">Aplicar filtros</button><button class="btn" id="clear">Limpiar</button></div>
+    </div>
+    <div id="dataStatus" class="status">Preparando consulta…</div>
+    <div id="range" class="note"></div>
+  </section>
+
+  <section class="kpis">
+    <div class="card"><div class="kpi-label">Días con primera gestión</div><div class="kpi-value" id="kDays">—</div><div class="note">De lunes a viernes</div></div>
+    <div class="card"><div class="kpi-label">Entradas tardías</div><div class="kpi-value" id="kLate">—</div><div class="note">Primera gestión después de 08:20</div></div>
+    <div class="card"><div class="kpi-label">Posibles salidas tempranas</div><div class="kpi-value" id="kEarly">—</div><div class="note">Última gestión antes de 18:00</div></div>
+    <div class="card"><div class="kpi-label">Balance observado</div><div class="kpi-value" id="kBalance">—</div><div class="note">Retraso + brecha previa a las 18:00; pendiente de validar</div></div>
+  </section>
+
+  <section class="card">
+    <div class="top" style="margin-bottom:4px"><div><h2 class="section-title">Progreso semanal de horarios</h2><div class="note">Solo se visualizan las horas de primera y última gestión por día.</div></div><div class="legend"><span><i class="dot" style="background:var(--green)"></i>En horario</span><span><i class="dot" style="background:var(--yellow)"></i>Entrada tardía</span><span><i class="dot" style="background:var(--red)"></i>Posible salida temprana</span><span><i class="dot" style="background:var(--gray)"></i>Sin registro</span></div></div>
+    <div class="chart-scroll"><svg id="chart" viewBox="0 0 900 350" role="img" aria-label="Gráfico semanal de hora de entrada y última gestión"></svg></div>
+    <div class="note">La última gestión no confirma por sí sola la hora real de salida. Las líneas unen los horarios diarios para mostrar la tendencia semanal.</div>
+  </section>
+
+  <section class="card">
+    <h2 class="section-title">Detalle semanal y balance de horas</h2>
+    <div class="note">El retraso se calcula desde las 08:20. La brecha de salida es el tiempo entre la última gestión y las 18:00. El balance es observacional y debe validarse antes de atribuirlo como tiempo adeudado.</div>
+    <div class="chart-scroll" style="margin-top:12px"><table><thead><tr><th>Día</th><th>Primera gestión</th><th>Retraso</th><th>Estado entrada</th><th>Última gestión</th><th>Brecha hasta 18:00</th><th>Estado salida</th><th>Balance observado</th></tr></thead><tbody id="details"></tbody><tfoot><tr><th colspan="2">Total semanal</th><th id="sumLate">—</th><th>—</th><th>—</th><th id="sumEarly">—</th><th>—</th><th id="sumTotal">—</th></tr></tfoot></table></div>
+  </section>
+
+  <section class="card">
+    <h2 class="section-title">Reglas de cálculo</h2>
+    <ul class="note">
+      <li>Se toma la primera y la última gestión válida por técnico y fecha.</li>
+      <li>El correlativo de 14 dígitos se interpreta como AAMMDDHHMM en sus primeros 10 dígitos.</li>
+      <li>Si la fecha del correlativo difiere de la fecha de envío y el motivo no es mantenimiento, se usa fecha y hora de envío. Para mantenimiento, se conserva la fecha y hora del correlativo.</li>
+      <li>Los correlativos duplicados se consolidan en un solo registro.</li>
+      <li>Fines de semana fuera del gráfico semanal laboral (lunes a viernes).</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+'use strict';
+const STORE_KEY='pbs_dashboard_historico_v2';
+const DEFAULT_API='https://script.google.com/macros/s/AKfycbw5hY81H53uxuYDuNdOeSDhKDY62vpyy8iwjgwnth8oBQrUrJxH3rp8eK9xblxTc8Og/exec';
+let rows=[], headers=[], filtered=[], applied={tech:'Todos',reason:'Todos',week:'',mode:'Semana'};
+const $=id=>document.getElementById(id);
+const norm=s=>String(s??'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function key(h){let n=norm(h);if(n==='gestion')return'gestion';if(n.includes('ejecutivo'))return'ejecutivo';if(n==='fecha')return'fecha';if(n==='hora')return'hora';if(n==='correlativo')return'correlativo';if(n==='motivo')return'motivo';return n}
+function parseDelimited(text){const src=String(text??'').replace(/^\uFEFF/,'');const first=src.split(/\r?\n/,1)[0]||'';const delim=first.includes('\t')?'\t':',';let out=[],rec=[],f='',q=false;for(let i=0;i<src.length;i++){let c=src[i];if(c==='"'){if(q&&src[i+1]==='"'){f+='"';i++}else q=!q}else if(c===delim&&!q){rec.push(f);f=''}else if(c==='\n'&&!q){rec.push(f);out.push(rec);rec=[];f=''}else if(c!=='\r')f+=c}if(f||rec.length){rec.push(f);out.push(rec)}return out.filter(r=>r.some(v=>String(v??'').trim()))}
+function parseDate(v){if(v instanceof Date)return isNaN(v)?null:v;let s=String(v??'').trim();if(!s)return null;let m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1]);m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3]);let d=new Date(s);return isNaN(d)?null:d}
+function dateISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function parseTime(v){let s=String(v??'').trim();if(!s)return null;let m=s.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?/);if(m){let h=+m[1],mi=+m[2];if(h<24&&mi<60)return h*60+mi}if(/^\d+(\.\d+)?$/.test(s)){let n=Number(s);if(n>=0&&n<1)return Math.round(n*1440)}return null}
+function fromCorr(c){let s=String(c??'').replace(/\D/g,'');if(s.length!==14)return null;let yy=+s.slice(0,2),mo=+s.slice(2,4),dd=+s.slice(4,6),hh=+s.slice(6,8),mi=+s.slice(8,10);if(mo<1||mo>12||dd<1||dd>31||hh>23||mi>59)return null;let d=new Date(2000+yy,mo-1,dd);if(d.getMonth()!==mo-1||d.getDate()!==dd)return null;return {date:dateISO(d),time:hh*60+mi}}
+function fmtMin(v){if(v==null||!Number.isFinite(v))return'—';return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0')}
+function fmtDuration(v){v=Math.max(0,Math.round(v||0));return String(Math.floor(v/60)).padStart(2,'0')+' h '+String(v%60).padStart(2,'0')+' min'}
+function displayDate(s){let d=parseDate(s);return d?d.toLocaleDateString('es-GT',{day:'2-digit',month:'short'}):s}
+function dedupe(arr){let m=new Map();arr.forEach(r=>{let c=String(r.correlativo||'').trim();let k=c?'c:'+c:'s:'+([r.fecha,r.hora,r.motivo,r.ejecutivo].join('|'));if(!m.has(k))m.set(k,r)});return [...m.values()]}
+function normalizeRows(raw, hs){return raw.map(a=>{let o={};hs.forEach((h,i)=>o[key(h)]=a[i]??'');return o}).map(r=>{let sendDate=parseDate(r.fecha),sendTime=parseTime(r.hora),corr=fromCorr(r.correlativo),maintenance=norm(r.motivo).includes('mantenimiento');let useSend=!!(corr&&sendDate&&dateISO(sendDate)!==corr.date&&!maintenance);let date=useSend?dateISO(sendDate):(corr?corr.date:(sendDate?dateISO(sendDate):''));let time=useSend?sendTime:(corr?corr.time:sendTime);return {...r,_date:date,_time:time,_tech:String(r.ejecutivo||'').trim(),_reason:String(r.motivo||'').trim(),_corr:String(r.correlativo||'').trim()}}).filter(r=>r._date&&r._tech)}
+function loadRowsFromStorage(){try{let x=JSON.parse(localStorage.getItem(STORE_KEY)||'null');if(x&&Array.isArray(x.rows)&&Array.isArray(x.headers)){headers=x.headers;rows=normalizeRows(x.rows.map(r=>headers.map(h=>r[key(h)]??r[norm(h)]??'')),headers);return true}}catch(e){}return false}
+function setStatus(msg,type=''){ $('dataStatus').className='status '+type;$('dataStatus').textContent=msg}
+function loadRemote(){let url='';try{url=localStorage.getItem('pbs_api_url')||''}catch(e){}url=url||DEFAULT_API;setStatus('Conectando con Google Sheets…');const cb='horariosCallback'+Date.now(),script=document.createElement('script');let done=false;const cleanup=()=>{try{delete window[cb]}catch(e){}script.remove()};const timer=setTimeout(()=>{if(done)return;done=true;cleanup();if(rows.length){setStatus('No se pudo actualizar en este momento. Se conserva la información disponible en el navegador.','warn')}else setStatus('No se pudo conectar con Google Sheets. Verifica la publicación del Apps Script.','error')},20000);window[cb]=data=>{if(done)return;done=true;clearTimeout(timer);cleanup();try{if(data.error)throw Error(data.error);if(!Array.isArray(data.headers)||!Array.isArray(data.rows))throw Error('Formato de datos no esperado');headers=data.headers;rows=dedupe(normalizeRows(data.rows.map(a=>{let o={};headers.forEach((h,i)=>o[key(h)]=a[i]??'');return o}),[]));try{localStorage.setItem(STORE_KEY,JSON.stringify({headers,rows:data.rows.map(a=>{let o={};headers.forEach((h,i)=>o[key(h)]=a[i]??'');return o}),savedAt:data.updatedAt||new Date().toISOString()}))}catch(e){}populateFilters();render();setStatus('Datos actualizados desde Google Sheets · '+rows.length.toLocaleString('es-GT')+' registros únicos.','ok') }catch(e){setStatus('Error al procesar datos: '+e.message,'error')}};script.onerror=()=>{if(done)return;done=true;clearTimeout(timer);cleanup();setStatus(rows.length?'No se pudo actualizar; se muestran los datos guardados localmente.':'No se pudo conectar con la fuente de datos.','warn')};script.src=url+(url.includes('?')?'&':'?')+'prefix='+encodeURIComponent(cb)+'&callback='+encodeURIComponent(cb)+'&t='+Date.now();document.head.appendChild(script)}
+function populateFilters(){let ts=[...new Set(rows.map(r=>r._tech).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));let rs=[...new Set(rows.map(r=>r._reason).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));let oldT=$('tech').value,oldR=$('reason').value;$('tech').innerHTML='<option value="Todos">Todos los técnicos</option>'+ts.map(x=>'<option>'+escapeHtml(x)+'</option>').join('');$('reason').innerHTML='<option value="Todos">Todos los motivos</option>'+rs.map(x=>'<option>'+escapeHtml(x)+'</option>').join('');if(ts.includes(oldT))$('tech').value=oldT;if(rs.includes(oldR))$('reason').value=oldR}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function monday(date){let d=new Date(date);d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d}
+function applyFilters(){applied={tech:$('tech').value,reason:$('reason').value,week:$('week').value,mode:$('dateMode').value};render()}
+function render(){let base=applied.week?monday(parseDate(applied.week)||new Date()):monday(new Date());let days=Array.from({length:5},(_,i)=>{let d=new Date(base);d.setDate(d.getDate()+i);return dateISO(d)});filtered=rows.filter(r=>days.includes(r._date)&&(applied.tech==='Todos'||r._tech===applied.tech)&&(applied.reason==='Todos'||r._reason===applied.reason));$('range').textContent='Semana: '+displayDate(days[0])+' – '+displayDate(days[4])+' · '+(applied.tech==='Todos'?'Todos los técnicos':applied.tech)+' · '+(applied.reason==='Todos'?'Todos los motivos':applied.reason);
+let daily=days.map(d=>{let arr=filtered.filter(r=>r._date===d);let byTech=new Map();arr.forEach(r=>{let a=byTech.get(r._tech)||[];a.push(r);byTech.set(r._tech,a)});let ent=[],sal=[];byTech.forEach(a=>{let valid=a.filter(r=>r._time!=null).sort((x,y)=>x._time-y._time);if(valid.length){ent.push(valid[0]._time);sal.push(valid[valid.length-1]._time)}});return {date:d,entry:ent.length?Math.min(...ent):null,exit:sal.length?Math.max(...sal):null,entryCount:ent.length,exitCount:sal.length}});
+let late=0,early=0;daily.forEach(x=>{if(x.entry!=null&&x.entry>500)late++;if(x.exit!=null&&x.exit<1080)early++});$('kDays').textContent=daily.filter(x=>x.entry!=null).length+'/5';$('kLate').textContent=late;$('kEarly').textContent=early;
+let totalLate=0,totalEarly=0;let tbody=$('details');tbody.innerHTML='';let daysNames=['Lun','Mar','Mié','Jue','Vie'];daily.forEach((x,i)=>{let dayRows=filtered.filter(r=>r._date===x.date);let techs=[...new Set(dayRows.map(r=>r._tech))];let firsts=[],lasts=[];techs.forEach(t=>{let ar=dayRows.filter(r=>r._tech===t&&r._time!=null).sort((a,b)=>a._time-b._time);if(ar.length){firsts.push(ar[0]._time);lasts.push(ar[ar.length-1]._time)}});let first=firsts.length?Math.min(...firsts):null,last=lasts.length?Math.max(...lasts):null;let l=first==null?0:Math.max(0,first-500),e=last==null?0:Math.max(0,1080-last);totalLate+=l;totalEarly+=e;let es=first==null?'Sin registro':first>500?'Entrada tardía':'En horario';let xs=last==null?'Sin registro':last<1080?'Posible salida temprana':'En horario';let tr=document.createElement('tr');let vals=[daysNames[i]+' '+displayDate(x.date),fmtMin(first),fmtDuration(l),es,fmtMin(last),fmtDuration(e),xs,fmtDuration(l+e)];vals.forEach((v,j)=>{let td=document.createElement('td');if(j===3||j===6){let cl=v==='En horario'?'green':v==='Entrada tardía'?'yellow':v==='Posible salida temprana'?'red':'gray';td.innerHTML='<span class="badge '+cl+'">'+escapeHtml(v)+'</span>'}else td.textContent=v;tr.appendChild(td)});tbody.appendChild(tr)});
+$('sumLate').textContent=fmtDuration(totalLate);$('sumEarly').textContent=fmtDuration(totalEarly);$('sumTotal').textContent=fmtDuration(totalLate+totalEarly);$('kBalance').textContent=fmtDuration(totalLate+totalEarly);drawChart(daily,daysNames)}
+function drawChart(daily,daysNames){const svg=$('chart'),ns='http://www.w3.org/2000/svg';svg.replaceChildren();const left=75,right=865,top=38,bottom=280,min=420,max=1140;const y=v=>bottom-(v-min)/(max-min)*(bottom-top),x=i=>left+i*(right-left)/4;function el(tag,attrs,text){let e=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));if(text!==undefined)e.textContent=text;svg.appendChild(e);return e}for(let h=7;h<=19;h++){let yy=y(h*60);el('line',{x1:left,y1:yy,x2:right,y2:yy,stroke:'#e1e7f0','stroke-dasharray':h===8||h===18?'0':'4 4'});el('text',{x:left-10,y:yy+4,'text-anchor':'end',fill:'#65718a','font-size':11},String(h).padStart(2,'0')+':00')}el('line',{x1:left,y1:y(500),x2:right,y2:y(500),stroke:'#d99a19','stroke-dasharray':'5 4','stroke-width':1.5});daily.forEach((d,i)=>el('text',{x:x(i),y:top-14,'text-anchor':'middle',fill:'#172033','font-size':12,'font-weight':700},daysNames[i]+' '+displayDate(d.date)));
+function line(key,shift,stroke){let points=daily.map((d,i)=>d[key]==null?null:{x:x(i)+shift,y:y(d[key]),val:d[key],i}).filter(Boolean);if(points.length>1)el('polyline',{points:points.map(p=>p.x+','+p.y).join(' '),fill:'none',stroke,'stroke-width':2.5,'stroke-linejoin':'round'});points.forEach(p=>{let s=key==='entry'?(p.val>500?'Entrada tardía':'En horario'):(p.val<1080?'Posible salida temprana':'En horario');let c=s==='En horario'?'#198754':s==='Entrada tardía'?'#d99a19':'#d64545';el('circle',{cx:p.x,cy:p.y,r:5,fill:c,stroke:'#fff','stroke-width':2});el('text',{x:p.x,y:p.y+(key==='entry'?-11:17),'text-anchor':'middle',fill:'#172033','font-size':11,'font-weight':700},fmtMin(p.val))})}
+line('entry',-7,'#245bd6');line('exit',7,'#7b61b9');if(!daily.some(d=>d.entry!=null||d.exit!=null))el('text',{x:450,y:150,'text-anchor':'middle',fill:'#65718a','font-size':14},'Sin registros para esta semana y filtros')}
+function normalizeWeekday(){const input=$('week');if(!input.value)return;const d=parseDate(input.value);if(d&&d.getDay()===6)d.setDate(d.getDate()-1);else if(d&&d.getDay()===0)d.setDate(d.getDate()+1);input.value=dateISO(d)}
+$('dateMode').addEventListener('change',()=>{const mode=$('dateMode').value;const input=$('week');const label=$('dateLabel');if(mode==='Mes'){input.type='month';label.textContent='Elige un mes';if(input.value)input.value=input.value.slice(0,7)}else if(mode==='Día'){input.type='date';label.textContent='Elige una fecha'}else{input.type='date';label.textContent='Elige un día de lunes a viernes';normalizeWeekday()}});
+$('apply').addEventListener('click',()=>{if($('dateMode').value==='Semana')normalizeWeekday();applyFilters()});$('week').addEventListener('change',()=>{if($('dateMode').value==='Semana')normalizeWeekday();applyFilters()});$('tech').addEventListener('change',applyFilters);$('reason').addEventListener('change',applyFilters);$('clear').addEventListener('click',()=>{$('tech').value='Todos';$('reason').value='Todos';$('week').value='';$('dateMode').value='Semana';$('week').type='date';$('dateLabel').textContent='Elige un día de lunes a viernes';applied={tech:'Todos',reason:'Todos',week:'',mode:'Semana'};render()});$('reload').addEventListener('click',loadRemote);
+$('week').value=dateISO(new Date());normalizeWeekday();if(loadRowsFromStorage()){populateFilters();applied.week=$('week').value;applied.mode='Semana';render();setStatus('Se cargaron datos guardados en este navegador. Actualizando desde la fuente…','ok')}loadRemote();
+</script>
+</body></html>
