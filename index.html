@@ -103,7 +103,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 </div></div>
 
 <div id="dashboardHome">
-<div class="wrap"><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary no-print" type="button" onclick="requestStaffAccess()">👥 Control de horarios</button><button class="btn primary no-print" type="button" onclick="requestCampaignAccess()">🔄 Control de campañas</button><button class="btn secondary no-print" onclick="descargarPDF()">📄 Descargar PDF</button></div></div></div>
+<div class="wrap"><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary no-print" type="button" onclick="requestStaffAccess()">👥 Control de horarios</button><button class="btn primary no-print" id="campaignExternalLink" type="button" onclick="requestCampaignAccess()">🔄 Control de campañas</button><button class="btn secondary no-print" onclick="descargarPDF()">📄 Descargar PDF</button></div></div></div>
 
 <div class="panel pdf-only" id="pdfStatusPanel"><h2>📅 Información del reporte</h2><div id="pdfStatusText" class="note">Datos disponibles hasta: — · Última actualización: —</div></div>
 
@@ -221,6 +221,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 #staffAccessModal .access-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 #staffAccessError{display:none;color:#b42318;font-size:12px;margin:-4px 0 12px}
 </style>
+<div id="campaignAccessModal" style="display:none;position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:18px">
+  <form id="campaignAccessForm" class="access-card" style="width:min(460px,100%);background:#fff;border-radius:18px;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <h2 style="margin:0 0 12px;color:#172033">🔒 Acceso a Control de Campañas</h2>
+    <p style="color:#65718a;margin:0 0 18px">Ingresa la clave autorizada para continuar.</p>
+    <label for="campaignAccessPassword">Contraseña</label>
+    <input id="campaignAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" style="width:100%;padding:13px;border:2px solid #d6deeb;border-radius:10px;font-size:16px;margin:8px 0">
+    <div id="campaignAccessError" role="alert" style="display:none;color:#dc2626;font-size:13px;margin-bottom:10px">Clave incorrecta. Permaneces en el dashboard general.</div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:10px"><button class="btn secondary" type="button" onclick="cancelCampaignAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
+  </form>
+</div>
 <div id="staffAccessModal" role="dialog" aria-modal="true" aria-labelledby="staffAccessTitle">
   <form class="access-card" id="staffAccessForm">
     <h2 id="staffAccessTitle">🔒 Acceso a Control de Horarios</h2>
@@ -229,16 +239,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
     <input id="staffAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" />
     <div id="staffAccessError" role="alert">Clave incorrecta. Permaneces en el dashboard general.</div>
     <div class="access-actions"><button class="btn secondary" type="button" onclick="cancelStaffAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
-  </form>
-</div>
-<div id="campaignAccessModal" role="dialog" aria-modal="true" aria-labelledby="campaignAccessTitle" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:18px">
-  <form class="access-card" id="campaignAccessForm" style="width:min(420px,100%);background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:24px;box-shadow:0 22px 60px rgba(15,23,42,.25)">
-    <h2 id="campaignAccessTitle">🔒 Acceso a Control de Campañas</h2>
-    <p>Ingresa la clave autorizada para continuar.</p>
-    <label for="campaignAccessPassword">Contraseña</label>
-    <input id="campaignAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" />
-    <div id="campaignAccessError" role="alert" style="display:none;color:#b42318;font-size:12px;margin:-4px 0 12px">Clave incorrecta. Permaneces en el dashboard general.</div>
-    <div class="access-actions"><button class="btn secondary" type="button" onclick="cancelCampaignAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
   </form>
 </div>
 <div id="staffDashboard" aria-label="Control semanal de horarios">
@@ -840,6 +840,26 @@ function loadRemote(){
   document.head.appendChild(script);
 }
 
+const CAMPAIGN_PAGE_URL='https://script.google.com/macros/s/AKfycbwjz61EB3xjTgsrf0W2Nc1SDG3aOusRUVPcsaK7vNax_ufQb2PqHXKhtzDFZPH6q70JQA/exec';
+function requestCampaignAccess(){
+ const modal=document.getElementById('campaignAccessModal');
+ document.getElementById('campaignAccessPassword').value='';
+ document.getElementById('campaignAccessError').style.display='none';
+ modal.style.display='flex';
+ setTimeout(()=>document.getElementById('campaignAccessPassword').focus(),30);
+}
+function cancelCampaignAccess(){document.getElementById('campaignAccessModal').style.display='none';}
+document.getElementById('campaignAccessForm').addEventListener('submit',function(e){
+ e.preventDefault();
+ const input=document.getElementById('campaignAccessPassword');
+ if(input.value==='AL12'){
+  document.getElementById('campaignAccessModal').style.display='none';
+  window.location.href=CAMPAIGN_PAGE_URL;
+ }else{
+  document.getElementById('campaignAccessError').style.display='block';
+  input.value='';input.focus();
+ }
+});
 let staffAccessGranted=false;
 function requestStaffAccess(){
   if(staffAccessGranted){showStaffDashboard();return;}
@@ -856,34 +876,15 @@ document.getElementById('staffAccessForm').addEventListener('submit',function(e)
   if(entered==='AL21'){
     staffAccessGranted=true;
     document.getElementById('staffAccessModal').style.display='none';
-    showStaffDashboard();
+    window.location.href=new URL('control_horarios.html', window.location.href.split('#')[0]).href;
   }else{
     document.getElementById('staffAccessError').style.display='block';
     document.getElementById('staffAccessPassword').value='';
     document.getElementById('staffAccessPassword').focus();
   }
 });
-function requestCampaignAccess(){
-  const modal=document.getElementById('campaignAccessModal');
-  document.getElementById('campaignAccessPassword').value='';
-  document.getElementById('campaignAccessError').style.display='none';
-  modal.style.display='flex';
-  setTimeout(()=>document.getElementById('campaignAccessPassword').focus(),30);
-}
-function cancelCampaignAccess(){document.getElementById('campaignAccessModal').style.display='none';document.getElementById('campaignAccessPassword').value='';document.getElementById('campaignAccessError').style.display='none';}
-document.getElementById('campaignAccessForm').addEventListener('submit',function(e){
-  e.preventDefault();
-  if(document.getElementById('campaignAccessPassword').value==='AL12'){
-    document.getElementById('campaignAccessModal').style.display='none';
-    window.location.href='https://script.google.com/macros/s/AKfycbwjz61EB3xjTgsrf0W2Nc1SDG3aOusRUVPcsaK7vNax_ufQb2PqHXKhtzDFZPH6q70JQA/exec';
-  }else{
-    document.getElementById('campaignAccessError').style.display='block';
-    document.getElementById('campaignAccessPassword').value='';
-    document.getElementById('campaignAccessPassword').focus();
-  }
-});
-function showStaffDashboard(){if(!staffAccessGranted){showMainDashboard();return;}if(location.hash!=='#horarios')history.pushState({pbsView:'staff'},'','#horarios');document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='block';window.scrollTo({top:0,behavior:'instant'});populateStaffFilters();renderStaffDashboard();}
-function showMainDashboard(){if(location.hash==='#horarios')history.replaceState({pbsView:'home'},'',location.pathname+location.search);document.getElementById('staffDashboard').style.display='none';document.getElementById('dashboardHome').style.display='block';document.getElementById('staffAccessModal').style.display='none';staffAccessGranted=false;window.scrollTo({top:0,behavior:'instant'});}
+function showStaffDashboard(){if(!staffAccessGranted){showMainDashboard();return;}if(document.getElementById('staffDashboard').style.display!=='block')history.pushState({pbsView:'staff'},'','#horarios');document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='block';window.scrollTo({top:0,behavior:'instant'});populateStaffFilters();renderStaffDashboard();}
+function showMainDashboard(){if(location.hash==='#horarios')history.replaceState({pbsView:'home'},' ',location.pathname+location.search);document.getElementById('staffDashboard').style.display='none';document.getElementById('dashboardHome').style.display='block';document.getElementById('staffAccessModal').style.display='none';staffAccessGranted=false;window.scrollTo({top:0,behavior:'instant'});}
 function staffDateISO(v){let s=String(v??'').trim();let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;return '';}
 function staffTimeMinutes(v){let s=String(v??'').trim();let m=s.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::\d{2})?/);if(m)return +m[1]*60+(+m[2]);return null;}
 function staffTimeLabel(v){if(v==null)return '—';return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');}
@@ -904,8 +905,8 @@ function renderStaffDashboard(){if(!document.getElementById('staffDashboard'))re
  document.getElementById('staffFoot').innerHTML=`<tr><th colspan="4">Total semanal observado</th><th>${staffDuration(lateTotal)}</th><th>—</th><th>${staffDuration(earlyTotal)}</th><th>${staffDuration(lateTotal+earlyTotal)}</th><th>Por validar</th></tr>`;}
 function resetStaffFilters(){document.getElementById('staffTech').value='';document.getElementById('staffReason').value='';document.getElementById('staffWeek').value=new Date().toISOString().slice(0,10);renderStaffDashboard();}
 
-window.addEventListener('popstate',()=>{if(location.hash==='#horarios'){if(staffAccessGranted)showStaffDashboard();else requestStaffAccess();}else showMainDashboard();});
-if(location.hash==='#horarios'){document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='none';requestStaffAccess();}
+window.addEventListener('popstate',()=>{if(location.hash==='#horarios'&&staffAccessGranted){document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='block';populateStaffFilters();renderStaffDashboard();}else showMainDashboard();});
+if(location.hash==='#horarios'){history.replaceState({pbsView:'home'},' ',location.pathname+location.search);document.getElementById('staffDashboard').style.display='none';document.getElementById('dashboardHome').style.display='block';}
 function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
 
 function resetFilters(){['fFrom','fTo'].forEach(x=>document.getElementById(x).value='');['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].forEach(x=>document.getElementById(x).value='');render()}
