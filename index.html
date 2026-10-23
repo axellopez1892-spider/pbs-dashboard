@@ -103,7 +103,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 </div></div>
 
 <div id="dashboardHome">
-<div class="wrap"><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary no-print" type="button" onclick="requestStaffAccess()">👥 Control de horarios</button><a class="btn primary no-print" id="campaignExternalLink" href="https://script.google.com/macros/s/AKfycbwjz61EB3xjTgsrf0W2Nc1SDG3aOusRUVPcsaK7vNax_ufQb2PqHXKhtzDFZPH6q70JQA/exec" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-flex;align-items:center">🔄 Control de campañas ↗</a><button class="btn secondary no-print" onclick="descargarPDF()">📄 Descargar PDF</button></div></div></div>
+<div class="wrap"><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary no-print" type="button" onclick="requestStaffAccess()">👥 Control de horarios</button><a class="btn primary no-print" id="campaignExternalLink" href="https://script.google.com/macros/s/AKfycbwjz61EB3xjTgsrf0W2Nc1SDG3aOusRUVPcsaK7vNax_ufQb2PqHXKhtzDFZPH6q70JQA/exec" onclick="return requestCampaignAccess(event)" style="text-decoration:none;display:inline-flex;align-items:center">🔄 Control de campañas</a><button class="btn secondary no-print" onclick="descargarPDF()">📄 Descargar PDF</button></div></div></div>
 
 <div class="panel pdf-only" id="pdfStatusPanel"><h2>📅 Información del reporte</h2><div id="pdfStatusText" class="note">Datos disponibles hasta: — · Última actualización: —</div></div>
 
@@ -831,7 +831,11 @@ function loadRemote(){
 }
 
 let staffAccessGranted=false;
+let accessMode='horarios';
 function requestStaffAccess(){
+  accessMode='horarios';
+  document.getElementById('staffAccessTitle').textContent='🔒 Acceso a Control de Horarios';
+  document.querySelector('#staffAccessForm p').textContent='Ingresa la clave autorizada para abrir el módulo de horarios.';
   if(staffAccessGranted){showStaffDashboard();return;}
   const modal=document.getElementById('staffAccessModal');
   document.getElementById('staffAccessPassword').value='';
@@ -839,11 +843,27 @@ function requestStaffAccess(){
   modal.style.display='flex';
   setTimeout(()=>document.getElementById('staffAccessPassword').focus(),30);
 }
+function requestCampaignAccess(event){
+  if(event) event.preventDefault();
+  accessMode='campanas';
+  document.getElementById('staffAccessTitle').textContent='🔒 Acceso a Control de Campañas';
+  document.querySelector('#staffAccessForm p').textContent='Ingresa la clave autorizada para abrir el módulo de campañas.';
+  document.getElementById('staffAccessPassword').value='';
+  document.getElementById('staffAccessError').style.display='none';
+  document.getElementById('staffAccessModal').style.display='flex';
+  setTimeout(()=>document.getElementById('staffAccessPassword').focus(),30);
+  return false;
+}
 function cancelStaffAccess(){document.getElementById('staffAccessModal').style.display='none';document.getElementById('staffAccessPassword').value='';document.getElementById('staffAccessError').style.display='none';showMainDashboard();}
 document.getElementById('staffAccessForm').addEventListener('submit',function(e){
   e.preventDefault();
   const entered=document.getElementById('staffAccessPassword').value;
-  if(entered==='A1L2'){
+  if((accessMode==='horarios' && entered==='AL21') || (accessMode==='campanas' && entered==='AL12')){
+    if(accessMode==='campanas'){
+      document.getElementById('staffAccessModal').style.display='none';
+      window.location.href=document.getElementById('campaignExternalLink').href;
+      return;
+    }
     staffAccessGranted=true;
     document.getElementById('staffAccessModal').style.display='none';
     showStaffDashboard();
