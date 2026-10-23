@@ -72,48 +72,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 }
 .pdf-only{display:none}
 
-/* Distribución operativa: avance visual de visitas frente a la meta mensual */
-.staff-progress-wrap{width:100%;overflow-x:auto}
-.staff-progress-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}
-.staff-progress-table th{padding:11px 10px;background:#f8fafc;font-size:10px;letter-spacing:.02em}
-.staff-progress-table td{padding:14px 10px;border-bottom:1px solid #e5eaf1;vertical-align:middle;white-space:normal}
-.staff-progress-table th:nth-child(1),.staff-progress-table td:nth-child(1){width:27%}
-.staff-progress-table th:nth-child(2),.staff-progress-table td:nth-child(2){width:13%}
-.staff-progress-table th:nth-child(3),.staff-progress-table td:nth-child(3){width:42%}
-.staff-progress-table th:nth-child(4),.staff-progress-table td:nth-child(4){width:18%}
-.staff-operation{font-weight:650;color:#172033}
-.staff-tech-count{font-weight:650}
-.staff-progress-line{display:flex;align-items:center;gap:12px;min-width:180px}
-.staff-progress-track{height:16px;flex:1;min-width:60px;background:#edf1f5;border-radius:999px;overflow:hidden}
-.staff-progress-fill{height:100%;background:#2f66e9;border-radius:999px;transition:width .35s ease}
-.staff-visits-number{font-size:14px;font-weight:800;color:#172033;min-width:58px;text-align:left}
-.staff-goal-label{font-size:12px;color:#687386;margin-top:7px}
-.staff-compliance-badge{display:inline-flex;justify-content:center;align-items:center;min-width:88px;padding:8px 12px;border-radius:999px;font-size:13px;font-weight:800;white-space:nowrap}
-.staff-badge-low{background:#fff0f0;color:#b42318}
-.staff-badge-warn{background:#fffaeb;color:#b54708}
-.staff-badge-good{background:#ecfdf3;color:#067647}
-@media(max-width:700px){.staff-progress-table{min-width:610px}.staff-progress-table td{padding:12px 8px}.staff-progress-track{height:13px}.staff-visits-number{font-size:12px;min-width:48px}.staff-compliance-badge{min-width:76px;padding:7px 8px;font-size:11px}}
-@media print{.staff-progress-table{font-size:10px}.staff-progress-table td{padding:8px}.staff-progress-track{height:12px}}
-
-
-/* Tablas visuales: departamentos y razones de no pago */
-.visual-group-wrap{max-height:450px;overflow:auto}
-.visual-group-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px}
-.visual-group-table th{padding:10px 8px;text-align:left;font-size:10px;color:var(--muted);background:#fff}
-.visual-group-table th:nth-child(1){width:38%}
-.visual-group-table th:nth-child(2){width:44%}
-.visual-group-table th:nth-child(3){width:18%}
-.visual-group-table td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle;white-space:normal}
-.visual-group-label{font-weight:600;line-height:1.35;overflow-wrap:anywhere}
-.visual-group-measure{display:flex;align-items:center;gap:10px;min-width:0}
-.visual-group-track{height:16px;flex:1;min-width:18px;background:#edf1f6;border-radius:999px;overflow:hidden}
-.visual-group-fill{height:100%;background:linear-gradient(90deg,#0b63f6,#2879f5);border-radius:999px;transition:width .45s ease}
-.visual-group-count{font-size:12px;font-weight:700;min-width:36px;text-align:right;font-variant-numeric:tabular-nums}
-.visual-group-percent{display:inline-block;min-width:64px;text-align:center;padding:5px 8px;border-radius:999px;background:#e8f1ff;color:#075ce5;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
-@media(max-width:700px){.visual-group-table{min-width:470px}.visual-group-table th,.visual-group-table td{padding:8px 6px}.visual-group-track{height:13px}.visual-group-percent{min-width:58px;padding:5px 6px}}
-@media(prefers-reduced-motion:reduce){.visual-group-fill{transition:none}}
-
-
 </style>
 
 <style>
@@ -145,7 +103,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 </div></div>
 
 <div id="dashboardHome">
-<div class="wrap"><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary no-print" type="button" onclick="requestStaffAccess()">👥 Control de horarios</button><a class="btn primary no-print" id="campaignExternalLink" href="https://script.google.com/macros/s/AKfycbwjz61EB3xjTgsrf0W2Nc1SDG3aOusRUVPcsaK7vNax_ufQb2PqHXKhtzDFZPH6q70JQA/exec" onclick="return requestCampaignAccess(event)" style="text-decoration:none;display:inline-flex;align-items:center">🔄 Control de campañas</a><button class="btn secondary no-print" onclick="descargarPDF()">📄 Descargar PDF</button></div></div></div>
+<div class="wrap"><div class="panel" style="margin-bottom:16px"><div style="display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap"><div class="note"><b>Modo consulta:</b> este dashboard no permite cargar ni modificar datos. La información se obtiene automáticamente desde Google Sheets.</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn secondary no-print" type="button" onclick="requestStaffAccess()">👥 Control de horarios</button><button class="btn primary no-print" type="button" onclick="requestCampaignAccess()">🔄 Control de campañas</button><button class="btn secondary no-print" onclick="descargarPDF()">📄 Descargar PDF</button></div></div></div>
 
 <div class="panel pdf-only" id="pdfStatusPanel"><h2>📅 Información del reporte</h2><div id="pdfStatusText" class="note">Datos disponibles hasta: — · Última actualización: —</div></div>
 
@@ -233,8 +191,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
 </div>
 
 <div class="grid2">
-<div class="panel"><h2>📍 Visitas por departamento</h2><div class="tablewrap visual-group-wrap"><table class="visual-group-table"><thead><tr><th>Departamento</th><th>Visitas</th><th>% del total</th></tr></thead><tbody id="deptTable"></tbody></table></div></div>
-<div class="panel"><h2>Razón de No pago</h2><div class="tablewrap visual-group-wrap"><table class="visual-group-table"><thead><tr><th>Razón</th><th>Casos</th><th>% del total</th></tr></thead><tbody id="reasonTable"></tbody></table></div></div>
+<div class="panel"><h2>📍 Visitas por departamento</h2><div class="tablewrap"><table><thead><tr><th>Departamento</th><th>Visitas</th><th>%</th></tr></thead><tbody id="deptTable"></tbody></table></div></div>
+<div class="panel"><h2>⚠️ Razones / incidencias</h2><div class="tablewrap"><table><thead><tr><th>Razón</th><th>Casos</th><th>%</th></tr></thead><tbody id="reasonTable"></tbody></table></div></div>
 </div>
 
 
@@ -271,6 +229,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 8px;b
     <input id="staffAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" />
     <div id="staffAccessError" role="alert">Clave incorrecta. Permaneces en el dashboard general.</div>
     <div class="access-actions"><button class="btn secondary" type="button" onclick="cancelStaffAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
+  </form>
+</div>
+<div id="campaignAccessModal" role="dialog" aria-modal="true" aria-labelledby="campaignAccessTitle" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.58);align-items:center;justify-content:center;padding:18px">
+  <form class="access-card" id="campaignAccessForm" style="width:min(420px,100%);background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:24px;box-shadow:0 22px 60px rgba(15,23,42,.25)">
+    <h2 id="campaignAccessTitle">🔒 Acceso a Control de Campañas</h2>
+    <p>Ingresa la clave autorizada para continuar.</p>
+    <label for="campaignAccessPassword">Contraseña</label>
+    <input id="campaignAccessPassword" type="password" autocomplete="off" required placeholder="Escribe la clave" />
+    <div id="campaignAccessError" role="alert" style="display:none;color:#b42318;font-size:12px;margin:-4px 0 12px">Clave incorrecta. Permaneces en el dashboard general.</div>
+    <div class="access-actions"><button class="btn secondary" type="button" onclick="cancelCampaignAccess()">Cancelar</button><button class="btn primary" type="submit">Ingresar</button></div>
   </form>
 </div>
 <div id="staffDashboard" aria-label="Control semanal de horarios">
@@ -573,30 +541,7 @@ function drawGoal(el,t,meta,vis,title){
       ${rightChart}
     </div>`;
 }
-function renderStaff(a,meta){
-  const groups={
-    'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),
-    'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),
-    'Departamental':a.filter(r=>!norm(r.area).includes('capital'))
-  };
-  let h='<div class="staff-progress-wrap"><table class="staff-progress-table"><thead><tr><th>Operación</th><th>Técnicos</th><th>Avance de visitas / meta mensual</th><th>Cumplimiento</th></tr></thead><tbody>';
-  Object.entries(groups).forEach(([n,x])=>{
-    const t=uniqFrom(x,'ejecutivo').length;
-    const g=t*meta;
-    const visits=x.length;
-    const p=g?visits/g*100:0;
-    const width=Math.max(0,Math.min(100,p));
-    const badgeClass=p>=100?'staff-badge-good':p>=90?'staff-badge-warn':'staff-badge-low';
-    h+=`<tr>
-      <td class="staff-operation">${n}</td>
-      <td class="staff-tech-count">${fmt(t)}</td>
-      <td><div class="staff-progress-line"><div class="staff-progress-track"><div class="staff-progress-fill" style="width:${width.toFixed(2)}%"></div></div><strong class="staff-visits-number">${fmt(visits)}</strong></div><div class="staff-goal-label">Meta: ${fmt(g)}</div></td>
-      <td><span class="staff-compliance-badge ${badgeClass}">${pct(p)}</span></td>
-    </tr>`;
-  });
-  h+='</tbody></table></div>';
-  document.getElementById('staff').innerHTML=h;
-}
+function renderStaff(a,meta){let groups={'Capital · Ruta':a.filter(r=>norm(r.area).includes('capital')&&norm(r.sub).includes('ruta')),'Capital · Proyecto':a.filter(r=>norm(r.area).includes('capital')&&!norm(r.sub).includes('ruta')),'Departamental':a.filter(r=>!norm(r.area).includes('capital'))};let h='<table><thead><tr><th>Operación</th><th>Técnicos</th><th>Visitas</th><th>Meta mensual</th><th>Cumplimiento</th></tr></thead><tbody>';Object.entries(groups).forEach(([n,x])=>{let t=uniqFrom(x,'ejecutivo').length,g=t*meta,p=g?x.length/g*100:0;h+=`<tr><td>${n}</td><td>${t}</td><td>${fmt(x.length)}</td><td>${fmt(g)}</td><td>${badge(p)}</td></tr>`});h+='</tbody></table>';document.getElementById('staff').innerHTML=h}
 function renderExec(a,meta){
   let g=groupRows(a,'ejecutivo').sort((x,y)=>y.n-x.n);
   document.getElementById('execTable').innerHTML=g.map((x,i)=>{
@@ -619,18 +564,7 @@ function renderExec(a,meta){
   }).join('');
 }
 function groupRows(a,k){let o={};a.forEach(r=>{let v=r[k]||'(Vacío)';o[v]||(o[v]=[]);o[v].push(r)});return Object.entries(o).map(([k,rs])=>({k,n:rs.length,rows:rs}))}
-function renderGroupTable(id,o,total,onlyNonempty=false){
-  let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);
-  if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');
-  const el=document.getElementById(id);
-  const max=arr.reduce((m,x)=>Math.max(m,Number(x[1])||0),0)||1;
-  el.innerHTML=arr.map(([k,n])=>{
-    const value=Number(n)||0;
-    const width=Math.max(value>0?2:0,Math.min(100,value/max*100));
-    const share=total?value/total*100:0;
-    return `<tr class="visual-group-row"><td class="visual-group-label" title="${esc(k)}">${esc(k)}</td><td><div class="visual-group-measure"><div class="visual-group-track"><div class="visual-group-fill" style="width:${width.toFixed(2)}%"></div></div><strong class="visual-group-count">${fmt(value)}</strong></div></td><td><span class="visual-group-percent">${pct(share)}</span></td></tr>`;
-  }).join('');
-}
+function renderGroupTable(id,o,total,onlyNonempty=false){let arr=Object.entries(o).sort((a,b)=>b[1]-a[1]);if(onlyNonempty)arr=arr.filter(x=>x[0]!=='(Vacío)');document.getElementById(id).innerHTML=arr.map(([k,n])=>`<tr><td>${esc(k)}</td><td>${fmt(n)}</td><td>${pct(total?n/total*100:0)}</td></tr>`).join('')}
 function renderDaily(a,dmeta,tech){
   // Gráfica de líneas: azul = visitas reales, amarillo = meta diaria.
   // Cada punto muestra su valor. Los fines de semana no generan meta.
@@ -907,11 +841,7 @@ function loadRemote(){
 }
 
 let staffAccessGranted=false;
-let accessMode='horarios';
 function requestStaffAccess(){
-  accessMode='horarios';
-  document.getElementById('staffAccessTitle').textContent='🔒 Acceso a Control de Horarios';
-  document.querySelector('#staffAccessForm p').textContent='Ingresa la clave autorizada para abrir el módulo de horarios.';
   if(staffAccessGranted){showStaffDashboard();return;}
   const modal=document.getElementById('staffAccessModal');
   document.getElementById('staffAccessPassword').value='';
@@ -919,27 +849,11 @@ function requestStaffAccess(){
   modal.style.display='flex';
   setTimeout(()=>document.getElementById('staffAccessPassword').focus(),30);
 }
-function requestCampaignAccess(event){
-  if(event) event.preventDefault();
-  accessMode='campanas';
-  document.getElementById('staffAccessTitle').textContent='🔒 Acceso a Control de Campañas';
-  document.querySelector('#staffAccessForm p').textContent='Ingresa la clave autorizada para abrir el módulo de campañas.';
-  document.getElementById('staffAccessPassword').value='';
-  document.getElementById('staffAccessError').style.display='none';
-  document.getElementById('staffAccessModal').style.display='flex';
-  setTimeout(()=>document.getElementById('staffAccessPassword').focus(),30);
-  return false;
-}
 function cancelStaffAccess(){document.getElementById('staffAccessModal').style.display='none';document.getElementById('staffAccessPassword').value='';document.getElementById('staffAccessError').style.display='none';showMainDashboard();}
 document.getElementById('staffAccessForm').addEventListener('submit',function(e){
   e.preventDefault();
   const entered=document.getElementById('staffAccessPassword').value;
-  if((accessMode==='horarios' && entered==='AL21') || (accessMode==='campanas' && entered==='AL12')){
-    if(accessMode==='campanas'){
-      document.getElementById('staffAccessModal').style.display='none';
-      window.location.href=document.getElementById('campaignExternalLink').href;
-      return;
-    }
+  if(entered==='AL21'){
     staffAccessGranted=true;
     document.getElementById('staffAccessModal').style.display='none';
     showStaffDashboard();
@@ -949,8 +863,27 @@ document.getElementById('staffAccessForm').addEventListener('submit',function(e)
     document.getElementById('staffAccessPassword').focus();
   }
 });
-function showStaffDashboard(){if(!staffAccessGranted){showMainDashboard();return;}if(document.getElementById('staffDashboard').style.display!=='block')history.pushState({pbsView:'staff'},'','#horarios');document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='block';window.scrollTo({top:0,behavior:'instant'});populateStaffFilters();renderStaffDashboard();}
-function showMainDashboard(){if(location.hash==='#horarios')history.replaceState({pbsView:'home'},' ',location.pathname+location.search);document.getElementById('staffDashboard').style.display='none';document.getElementById('dashboardHome').style.display='block';document.getElementById('staffAccessModal').style.display='none';staffAccessGranted=false;window.scrollTo({top:0,behavior:'instant'});}
+function requestCampaignAccess(){
+  const modal=document.getElementById('campaignAccessModal');
+  document.getElementById('campaignAccessPassword').value='';
+  document.getElementById('campaignAccessError').style.display='none';
+  modal.style.display='flex';
+  setTimeout(()=>document.getElementById('campaignAccessPassword').focus(),30);
+}
+function cancelCampaignAccess(){document.getElementById('campaignAccessModal').style.display='none';document.getElementById('campaignAccessPassword').value='';document.getElementById('campaignAccessError').style.display='none';}
+document.getElementById('campaignAccessForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  if(document.getElementById('campaignAccessPassword').value==='AL12'){
+    document.getElementById('campaignAccessModal').style.display='none';
+    window.location.href='https://script.google.com/macros/s/AKfycbwjz61EB3xjTgsrf0W2Nc1SDG3aOusRUVPcsaK7vNax_ufQb2PqHXKhtzDFZPH6q70JQA/exec';
+  }else{
+    document.getElementById('campaignAccessError').style.display='block';
+    document.getElementById('campaignAccessPassword').value='';
+    document.getElementById('campaignAccessPassword').focus();
+  }
+});
+function showStaffDashboard(){if(!staffAccessGranted){showMainDashboard();return;}if(location.hash!=='#horarios')history.pushState({pbsView:'staff'},'','#horarios');document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='block';window.scrollTo({top:0,behavior:'instant'});populateStaffFilters();renderStaffDashboard();}
+function showMainDashboard(){if(location.hash==='#horarios')history.replaceState({pbsView:'home'},'',location.pathname+location.search);document.getElementById('staffDashboard').style.display='none';document.getElementById('dashboardHome').style.display='block';document.getElementById('staffAccessModal').style.display='none';staffAccessGranted=false;window.scrollTo({top:0,behavior:'instant'});}
 function staffDateISO(v){let s=String(v??'').trim();let m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;return '';}
 function staffTimeMinutes(v){let s=String(v??'').trim();let m=s.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::\d{2})?/);if(m)return +m[1]*60+(+m[2]);return null;}
 function staffTimeLabel(v){if(v==null)return '—';return String(Math.floor(v/60)).padStart(2,'0')+':'+String(v%60).padStart(2,'0');}
@@ -971,8 +904,8 @@ function renderStaffDashboard(){if(!document.getElementById('staffDashboard'))re
  document.getElementById('staffFoot').innerHTML=`<tr><th colspan="4">Total semanal observado</th><th>${staffDuration(lateTotal)}</th><th>—</th><th>${staffDuration(earlyTotal)}</th><th>${staffDuration(lateTotal+earlyTotal)}</th><th>Por validar</th></tr>`;}
 function resetStaffFilters(){document.getElementById('staffTech').value='';document.getElementById('staffReason').value='';document.getElementById('staffWeek').value=new Date().toISOString().slice(0,10);renderStaffDashboard();}
 
-window.addEventListener('popstate',()=>{if(location.hash==='#horarios'&&staffAccessGranted){document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='block';populateStaffFilters();renderStaffDashboard();}else showMainDashboard();});
-if(location.hash==='#horarios'){history.replaceState({pbsView:'home'},' ',location.pathname+location.search);document.getElementById('staffDashboard').style.display='none';document.getElementById('dashboardHome').style.display='block';}
+window.addEventListener('popstate',()=>{if(location.hash==='#horarios'){if(staffAccessGranted)showStaffDashboard();else requestStaffAccess();}else showMainDashboard();});
+if(location.hash==='#horarios'){document.getElementById('dashboardHome').style.display='none';document.getElementById('staffDashboard').style.display='none';requestStaffAccess();}
 function restoreApiUrl(){const u=localStorage.getItem('pbs_api_url');if(u)document.getElementById('apiUrl').value=u;}
 
 function resetFilters(){['fFrom','fTo'].forEach(x=>document.getElementById(x).value='');['fGestion','fPago','fArea','fSub','fExec','fDept','fMun','fZona'].forEach(x=>document.getElementById(x).value='');render()}
